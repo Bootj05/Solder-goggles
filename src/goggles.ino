@@ -177,10 +177,18 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   else if (msg == "prev")
     previousPreset();
   else if (msg.startsWith("set:")) {
-    int idx = msg.substring(4).toInt();
-    if (idx >= 0 && idx < presets.size()) {
-      currentPreset = idx;
-      applyPreset();
+    String idxStr = msg.substring(4);
+    bool digitsOnly = idxStr.length() > 0;
+    for (size_t i = 0; i < idxStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(idxStr[i]);
+    }
+    // Validate the index to avoid falling back to preset 0 on bad input
+    if (digitsOnly) {
+      int idx = idxStr.toInt();
+      if (idx >= 0 && idx < presets.size()) {
+        currentPreset = idx;
+        applyPreset();
+      }
     }
   }
 }
