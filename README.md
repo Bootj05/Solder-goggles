@@ -14,7 +14,13 @@ Create `include/secrets.h` with your WiFi credentials as `WIFI_SSID` and
 - Simple WebSocket API for remote control
 
 ### Building
-Install [PlatformIO](https://platformio.org/) and run:
+Run `setup.sh` once to install PlatformIO and build the firmware:
+
+```bash
+./setup.sh
+```
+
+If you already have PlatformIO installed you can build manually with:
 
 ```bash
 pio run
