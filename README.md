@@ -5,8 +5,8 @@ Pair of specs with magnifier glass upgraded with 13 LEDs.
 ## Firmware
 
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
-Create `include/secrets.h` with your WiFi credentials as `WIFI_SSID` and
-`WIFI_PASSWORD`.
+Copy `include/secrets_example.h` to `include/secrets.h` and add your WiFi
+credentials as `WIFI_SSID` and `WIFI_PASSWORD`.
 
 ### Features
 - Web interface for switching LED presets
