@@ -11,6 +11,7 @@
 #include <WebSocketsServer.h>
 #include <WiFi.h>
 #include <vector>
+#include <ctype.h>
 
 namespace cfg {
 constexpr uint8_t LED_PIN = 2;
@@ -148,19 +149,36 @@ void handleRoot() {
  * Add a new static preset from form input
  */
 void handleAdd() {
-  if (server.hasArg("name") && server.hasArg("color")) {
-    String name = server.arg("name");
-    String colorStr = server.arg("color");
-    if (colorStr.length() == 7 && colorStr[0] == '#') {
-      colorStr = colorStr.substring(1);
-      long val = strtol(colorStr.c_str(), nullptr, 16);
-      presets.push_back(
-          {name, PresetType::STATIC,
-           CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
-      currentPreset = presets.size() - 1;
-      applyPreset();
+  if (!server.hasArg("name") || !server.hasArg("color")) {
+    server.send(400, "text/html",
+                "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");
+    return;
+  }
+
+  String name = server.arg("name");
+  String colorStr = server.arg("color");
+
+  if (colorStr.length() != 7 || colorStr[0] != '#') {
+    server.send(400, "text/html",
+                "<html><body><p>Color must be in format #RRGGBB.</p><a href='/' >Back</a></body></html>");
+    return;
+  }
+
+  colorStr = colorStr.substring(1);
+  for (size_t i = 0; i < colorStr.length(); ++i) {
+    if (!isxdigit(static_cast<unsigned char>(colorStr[i]))) {
+      server.send(400, "text/html",
+                  "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
+      return;
     }
   }
+
+  long val = strtol(colorStr.c_str(), nullptr, 16);
+  presets.push_back({name, PresetType::STATIC,
+                     CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
+  currentPreset = presets.size() - 1;
+  applyPreset();
+
   server.sendHeader("Location", "/");
   server.send(303);
 }
