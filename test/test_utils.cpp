@@ -18,11 +18,19 @@ void test_invalid_chars() {
     TEST_ASSERT_FALSE(parseHexColor("gg0000", val));
 }
 
+// wsEvent tests from test_wsEvent.cpp
+void test_next_message();
+void test_set_message();
+void test_bright_message();
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_valid_color);
     RUN_TEST(test_invalid_length);
     RUN_TEST(test_invalid_chars);
+    RUN_TEST(test_next_message);
+    RUN_TEST(test_set_message);
+    RUN_TEST(test_bright_message);
     return UNITY_END();
 }
 
