@@ -3,6 +3,7 @@
  * Provides WiFi control and OTA updates
  */
 #include "secrets.h"
+#include "utils.h"
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
@@ -10,6 +11,8 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
+#include <Preferences.h>
 #include <vector>
 #include <ctype.h>
 
@@ -20,17 +23,23 @@ constexpr uint8_t BTN_PREV = 0;
 constexpr uint8_t BTN_NEXT = 35;
 const char *SSID = WIFI_SSID;
 const char *PASSWORD = WIFI_PASSWORD;
+#ifdef USE_AUTH
+const char *TOKEN = AUTH_TOKEN;
+#endif
 } // namespace cfg
 
 /**
  * Types of LED animations.
  *
- * - `STATIC`     Solid color chosen per preset
- * - `RAINBOW`    Continuously cycling rainbow
- * - `POLICE_NL`  Blue and white pattern similar to Dutch police lights
- * - `POLICE_USA` Red, white and blue pattern similar to US police lights
- * - `STROBE`     Fast white flash on and off
- * - `LAVALAMP`   Slowly moving color gradient
+ * - `STATIC` &mdash; Solid color chosen per preset.
+ * - `RAINBOW` &mdash; Continuously cycling rainbow.
+ * - `POLICE_NL` &mdash; Blue and white pattern similar to Dutch police lights.
+ * - `POLICE_USA` &mdash; Red, white and blue pattern similar to US police lights.
+ * - `STROBE` &mdash; Fast white flash on and off.
+ * - `LAVALAMP` &mdash; Slowly moving color gradient.
+ * - `FIRE`       Randomized warm flicker
+ * - `CANDLE`     Single warm flickering glow
+ * - `PARTY`      Random bright colors
  */
 enum class PresetType {
   STATIC,
@@ -38,7 +47,10 @@ enum class PresetType {
   POLICE_NL,
   POLICE_USA,
   STROBE,
-  LAVALAMP
+  LAVALAMP,
+  FIRE,
+  CANDLE,
+  PARTY
 };
 struct Preset {
   String name;
@@ -46,28 +58,67 @@ struct Preset {
   CRGB color; // Only for STATIC
 };
 
-std::vector<Preset> presets{{"White", PresetType::STATIC, CRGB::White},
+struct PresetData {
+  const char *name;
+  PresetType type;
+  CRGB color;
+};
+
+const {"White", PresetType::STATIC, CRGB::White},
                             {"Rainbow", PresetType::RAINBOW, CRGB::Black},
                             {"Police NL", PresetType::POLICE_NL, CRGB::Black},
                             {"Police USA", PresetType::POLICE_USA, CRGB::Black},
                             {"Strobe", PresetType::STROBE, CRGB::Black},
-                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black}};
+                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
+                            {"Fire", PresetType::FIRE, CRGB::Black},
+                            {"Candle", PresetType::CANDLE, CRGB::Black},
+                            {"Party", PresetType::PARTY, CRGB::Black}};
+std::vector<Preset> presets;
+const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
+
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
 uint8_t rainbowHue = 0;
 
+unsigned long lastAnim = 0;
+uint8_t brightness = 255;
+unsigned long animInterval = 50;
+
+Preferences prefs;
+String storedSSID;
+String storedPassword;
+
 WebServer server(80);
 WebSocketsServer ws(81);
 
+void loadCredentials() {
+  prefs.begin("wifi", true);
+  storedSSID = prefs.getString("ssid", "");
+  storedPassword = prefs.getString("pass", "");
+  prefs.end();
+}
+
+void saveCredentials(const String &ssid, const String &password) {
+  prefs.begin("wifi", false);
+  prefs.putString("ssid", ssid);
+  prefs.putString("pass", password);
+  prefs.end();
+  storedSSID = ssid;
+  storedPassword = password;
+}
+
 /**
- * Connect to WiFi using credentials from secrets.h
+ * Connect to WiFi using stored credentials if available
  */
 
 void connectWiFi() {
+  loadCredentials();
+  const char *ssid = storedSSID.length() ? storedSSID.c_str() : cfg::SSID;
+  const char *pass = storedPassword.length() ? storedPassword.c_str() : cfg::PASSWORD;
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(cfg::SSID, cfg::PASSWORD);
+  WiFi.begin(ssid, pass);
   unsigned long start = millis();
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
@@ -80,6 +131,53 @@ void connectWiFi() {
   } else {
     Serial.println(" failed to connect.");
   }
+}
+
+void loadDefaultPresets() {
+  presets.clear();
+  for (size_t i = 0; i < DEFAULT_PRESET_COUNT; ++i) {
+    PresetData data;
+    memcpy_P(&data, &defaultPresets[i], sizeof(PresetData));
+    presets.push_back({String(data.name), data.type, data.color});
+  }
+}
+
+void loadCustomPresets() {
+  File f = SPIFFS.open("/presets.txt", "r");
+  if (!f)
+    return;
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (!line.length())
+      continue;
+    int first = line.indexOf(',');
+    int second = line.indexOf(',', first + 1);
+    if (first == -1 || second == -1)
+      continue;
+    String name = line.substring(0, first);
+    int type = line.substring(first + 1, second).toInt();
+    String colStr = line.substring(second + 1);
+    uint32_t val = strtoul(colStr.c_str(), nullptr, 16);
+    presets.push_back({name, static_cast<PresetType>(type),
+                       CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF,
+                            val & 0xFF)});
+  }
+  f.close();
+}
+
+void saveCustomPresets() {
+  File f = SPIFFS.open("/presets.txt", "w");
+  if (!f)
+    return;
+  for (size_t i = DEFAULT_PRESET_COUNT; i < presets.size(); ++i) {
+    char buf[64];
+    sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
+            static_cast<int>(presets[i].type), presets[i].color.r,
+            presets[i].color.g, presets[i].color.b);
+    f.print(buf);
+  }
+  f.close();
 }
 
 /**
@@ -123,6 +221,21 @@ void applyPreset() {
       leds[i] = CHSV((lavaPos + i * 10) % 255, 200, 255);
     }
   } break;
+  case PresetType::FIRE: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(0, 40), 255, random8(120, 255));
+    }
+  } break;
+  case PresetType::CANDLE: {
+    uint8_t bri = random8(150, 255);
+    CRGB color = CHSV(random8(25, 45), 200, bri);
+    fill_solid(leds, cfg::NUM_LEDS, color);
+  } break;
+  case PresetType::PARTY: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(), 255, 255);
+    }
+  } break;
   }
 
   FastLED.show();
@@ -146,8 +259,10 @@ void previousPreset() {
 
 /**
  * Serve the main HTML interface listing presets
+ * The page template is stored entirely in PROGMEM with a %PRESETS% placeholder
+ * that gets replaced with the generated preset list.
  */
-const char HTML_HEADER[] PROGMEM = R"html(
+const char HTML_PAGE[] PROGMEM = R"html(
 <!DOCTYPE html>
 <html>
 <head>
@@ -157,9 +272,7 @@ const char HTML_HEADER[] PROGMEM = R"html(
 <body class="container mt-4">
   <h1 class="mb-3">LED Presets</h1>
   <ul class="list-group">
-)html";
-
-const char HTML_FOOTER[] PROGMEM = R"html(
+  %PRESETS%
   </ul>
   <form method='POST' action='/add' class='mt-4'>
     <div class='form-group'>
@@ -172,19 +285,22 @@ const char HTML_FOOTER[] PROGMEM = R"html(
     </div>
     <button class='btn btn-primary'>Add</button>
   </form>
+  <a class='btn btn-link mt-2' href='/wifi'>WiFi setup</a>
 </body>
 </html>
 )html";
 
 void handleRoot() {
-  String html = FPSTR(HTML_HEADER);
+  String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    html += "<li class='list-group-item'>" + presets[i].name;
+    presetList += "<li class='list-group-item'>" + presets[i].name;
     if (i == currentPreset)
-      html += " <span class='badge badge-success'>active</span>";
-    html += "</li>";
+      presetList += " <span class='badge badge-success'>active</span>";
+    presetList += "</li>";
   }
-  html += FPSTR(HTML_FOOTER);
+
+  String html = FPSTR(HTML_PAGE);
+  html.replace("%PRESETS%", presetList);
   server.send(200, "text/html", html);
 }
 
@@ -192,6 +308,13 @@ void handleRoot() {
  * Add a new static preset from form input
  */
 void handleAdd() {
+#if USE_AUTH
+  if (!server.hasArg("token") || server.arg("token") != cfg::TOKEN) {
+    server.send(403, "text/html",
+                "<html><body><p>Invalid token.</p><a href='/' >Back</a></body></html>");
+    return;
+  }
+#endif
   if (!server.hasArg("name") || !server.hasArg("color")) {
     server.send(400, "text/html",
                 "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");
@@ -207,21 +330,55 @@ void handleAdd() {
     return;
   }
 
-  colorStr = colorStr.substring(1);
-  for (size_t i = 0; i < colorStr.length(); ++i) {
-    if (!isxdigit(static_cast<unsigned char>(colorStr[i]))) {
-      server.send(400, "text/html",
-                  "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
-      return;
-    }
+  uint32_t colorVal;
+  if (!parseHexColor(colorStr.c_str() + 1, colorVal)) {
+    server.send(400, "text/html",
+                "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
+    return;
   }
 
-  long val = strtol(colorStr.c_str(), nullptr, 16);
   presets.push_back({name, PresetType::STATIC,
-                     CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
+                     CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF, colorVal & 0xFF)});
   currentPreset = presets.size() - 1;
+  saveCustomPresets();
   applyPreset();
 
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/**
+ * Display form for WiFi credentials
+ */
+void handleWifiForm() {
+  String html =
+      "<!DOCTYPE html><html><head><title>WiFi Setup</title>"
+      "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css'></head>"
+      "<body class='container mt-4'>"
+      "<h1>WiFi Credentials</h1>"
+      "<form method='POST' action='/wifi'>"
+      "<div class='form-group'><label for='ssid'>SSID</label>"
+      "<input class='form-control' id='ssid' name='ssid' value='" +
+      storedSSID + "'></div>"
+      "<div class='form-group'><label for='password'>Password</label>"
+      "<input class='form-control' id='password' name='password' type='password' value='" +
+      storedPassword + "'></div>"
+      "<button class='btn btn-primary'>Save</button></form>"
+      "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+/**
+ * Save WiFi credentials from form
+ */
+void handleWifiSave() {
+  if (!server.hasArg("ssid") || !server.hasArg("password")) {
+    server.send(400, "text/html",
+                "<html><body><p>Missing SSID or password.</p><a href='/wifi'>Back</a></body></html>");
+    return;
+  }
+  saveCredentials(server.arg("ssid"), server.arg("password"));
+  connectWiFi();
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -233,6 +390,12 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   if (type != WStype_TEXT)
     return;
   String msg = String((char *)payload);
+#if USE_AUTH
+  String prefix = String(cfg::TOKEN) + ":";
+  if (!msg.startsWith(prefix))
+    return;
+  msg = msg.substring(prefix.length());
+#endif
   if (msg == "next")
     nextPreset();
   else if (msg == "prev")
@@ -251,6 +414,46 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
         applyPreset();
       }
     }
+  } else if (msg.startsWith("bright:")) {
+    String valStr = msg.substring(7);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val >= 0 && val <= 255) {
+        brightness = val;
+        FastLED.setBrightness(brightness);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("color:")) {
+    String colorStr = msg.substring(6);
+    if (colorStr.length() == 7 && colorStr[0] == '#') {
+      colorStr = colorStr.substring(1);
+      bool hexOnly = colorStr.length() == 6;
+      for (size_t i = 0; i < colorStr.length() && hexOnly; ++i) {
+        hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
+      }
+      if (hexOnly) {
+        long val = strtol(colorStr.c_str(), nullptr, 16);
+        presets[currentPreset].color =
+            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("speed:")) {
+    String valStr = msg.substring(6);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val > 0)
+        animInterval = val;
+    }
   }
 }
 
@@ -263,6 +466,11 @@ void setup() {
   // Buttons use internal pull-ups and are thus active-low
   pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
+  FastLED.setBrightness(brightness);
+
+  SPIFFS.begin(true);
+  loadDefaultPresets();
+  loadCustomPresets();
 
   connectWiFi();
   if (MDNS.begin("JohannesBril")) {
@@ -271,6 +479,8 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
+  server.on("/wifi", HTTP_GET, handleWifiForm);
+  server.on("/wifi", HTTP_POST, handleWifiSave);
   server.begin();
 
   ws.begin();
@@ -309,5 +519,8 @@ void loop() {
   ws.loop();
   ArduinoOTA.handle();
 
-  applyPreset();
+  if (millis() - lastAnim > animInterval) {
+    applyPreset();
+    lastAnim = millis();
+  }
 }
