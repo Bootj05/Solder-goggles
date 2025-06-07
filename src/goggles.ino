@@ -118,7 +118,8 @@ struct Preset {
     if (this != &other) {
       delete[] leds;
       delete[] effects;
-      leds = effects = nullptr;
+      leds = nullptr;
+      effects = nullptr;
       name = other.name;
       type = other.type;
       color = other.color;
