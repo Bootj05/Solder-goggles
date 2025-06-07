@@ -140,8 +140,10 @@ void previousPreset() {
 
 /**
  * Serve the main HTML interface listing presets
+ * The page template is stored entirely in PROGMEM with a %PRESETS% placeholder
+ * that gets replaced with the generated preset list.
  */
-const char HTML_HEADER[] PROGMEM = R"html(
+const char HTML_PAGE[] PROGMEM = R"html(
 <!DOCTYPE html>
 <html>
 <head>
@@ -151,9 +153,7 @@ const char HTML_HEADER[] PROGMEM = R"html(
 <body class="container mt-4">
   <h1 class="mb-3">LED Presets</h1>
   <ul class="list-group">
-)html";
-
-const char HTML_FOOTER[] PROGMEM = R"html(
+  %PRESETS%
   </ul>
   <form method='POST' action='/add' class='mt-4'>
     <div class='form-group'>
@@ -171,14 +171,16 @@ const char HTML_FOOTER[] PROGMEM = R"html(
 )html";
 
 void handleRoot() {
-  String html = FPSTR(HTML_HEADER);
+  String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    html += "<li class='list-group-item'>" + presets[i].name;
+    presetList += "<li class='list-group-item'>" + presets[i].name;
     if (i == currentPreset)
-      html += " <span class='badge badge-success'>active</span>";
-    html += "</li>";
+      presetList += " <span class='badge badge-success'>active</span>";
+    presetList += "</li>";
   }
-  html += FPSTR(HTML_FOOTER);
+
+  String html = FPSTR(HTML_PAGE);
+  html.replace("%PRESETS%", presetList);
   server.send(200, "text/html", html);
 }
 
