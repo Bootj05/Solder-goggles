@@ -310,7 +310,7 @@ const char HTML_PAGE[] PROGMEM = R"html(
       <input class='form-control' id='name' name='name' placeholder='Name'>
     </div>
     <div class='col-12'>
-      <input class='form-control' id='color' name='color' placeholder='#RRGGBB'>
+      <input class='form-control' id='color' name='color' type='color'>
     </div>
     <div class='col-12'>
       <button class='btn btn-primary'>Add</button>
