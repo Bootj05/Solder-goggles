@@ -33,7 +33,7 @@ const char *TOKEN = AUTH_TOKEN;
  *
  * - `STATIC` &mdash; Solid color chosen per preset.
  * - `RAINBOW` &mdash; Continuously cycling rainbow.
- * - `POLICE_NL` &mdash; Blue and white pattern similar to Dutch police lights.
+ * - `POLICE_NL` &mdash; Segmented blue pattern with timed strobe like Dutch police lights.
  * - `POLICE_USA` &mdash; Red, white and blue pattern similar to US police lights.
  * - `STROBE` &mdash; Fast white flash on and off.
  * - `LAVALAMP` &mdash; Slowly moving color gradient.
@@ -279,8 +279,8 @@ void applyPreset() {
     static uint32_t flashCount = 0;
     static bool strobe = false;
     static uint8_t strobeGroup = 0;   // 1 or 2 when strobing
-    const uint16_t flashInterval = 500;  // ms
-    const uint16_t strobeInterval = 50;  // ms
+    const uint16_t flashInterval = 250;  // ms
+    const uint16_t strobeInterval = 20;  // ms
 
     if (millis() - lastToggle >= flashInterval) {
       phase = !phase;
@@ -313,8 +313,8 @@ void applyPreset() {
         setGroup(3, 3, CRGB::Black);
         setGroup(9, 4, CRGB::Black);
       } else {
-        setGroup(3, 3, strobeOn ? CRGB::White : CRGB::Black);
-        setGroup(9, 4, strobeOn ? CRGB::White : CRGB::Black);
+        setGroup(3, 3, strobeOn ? CRGB::Blue : CRGB::Black);
+        setGroup(9, 4, strobeOn ? CRGB::Blue : CRGB::Black);
         setGroup(0, 3, CRGB::Black);
         setGroup(6, 3, CRGB::Black);
       }
@@ -324,8 +324,8 @@ void applyPreset() {
       setGroup(3, 3, CRGB::Black);
       setGroup(9, 4, CRGB::Black);
     } else {
-      setGroup(3, 3, CRGB::White);
-      setGroup(9, 4, CRGB::White);
+      setGroup(3, 3, CRGB::Blue);
+      setGroup(9, 4, CRGB::Blue);
       setGroup(0, 3, CRGB::Black);
       setGroup(6, 3, CRGB::Black);
     }
@@ -446,6 +446,12 @@ const char HTML_PAGE[] PROGMEM = R"html(
     <a class='btn btn-secondary me-2' href='/prev'>Prev</a>
     <a class='btn btn-secondary' href='/next'>Next</a>
   </div>
+  <div class='mb-4'>
+    <label for='bright' class='form-label'>Brightness</label>
+    <input type='range' class='form-range' id='bright' min='0' max='255'
+           value='%BRIGHT%'
+           onchange="location.href='/bright?b=' + this.value">
+  </div>
   <ul class="list-group">
   %PRESETS%
   </ul>
@@ -479,6 +485,7 @@ void handleRoot() {
 
   String html = FPSTR(HTML_PAGE);
   html.replace("%PRESETS%", presetList);
+  html.replace("%BRIGHT%", String(brightness));
   server.send(200, "text/html", html);
 }
 
@@ -556,6 +563,24 @@ void handleNext() {
 /** Navigate to previous preset */
 void handlePrev() {
   previousPreset();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/** Adjust brightness via query parameter 'b' (0-255) */
+void handleBright() {
+  if (!server.hasArg("b")) {
+    server.send(400, "text/plain", "Missing value");
+    return;
+  }
+  int val = server.arg("b").toInt();
+  if (val < 0 || val > 255) {
+    server.send(400, "text/plain", "Invalid value");
+    return;
+  }
+  brightness = val;
+  FastLED.setBrightness(brightness);
+  applyPreset();
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -728,6 +753,7 @@ void setup() {
   server.on("/set", HTTP_GET, handleSet);
   server.on("/next", HTTP_GET, handleNext);
   server.on("/prev", HTTP_GET, handlePrev);
+  server.on("/bright", HTTP_GET, handleBright);
   server.on("/wifi", HTTP_GET, handleWifiForm);
   server.on("/wifi", HTTP_POST, handleWifiSave);
   server.begin();
