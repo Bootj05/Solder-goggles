@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Set up PlatformIO and build the firmware
-set -e
+set -Eeuo pipefail
+
+error_exit() {
+    echo "Error on line $1: $BASH_COMMAND" >&2
+    exit 1
+}
+trap 'error_exit $LINENO' ERR
 
 # Determine sed command and in-place arguments
 SED="sed"
@@ -84,5 +90,11 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Build firmware
-pio lib -g install fastled/FastLED@3.9.20
-pio run
+if ! pio lib -g install fastled/FastLED@3.9.20; then
+    echo "Library installation failed" >&2
+    exit 1
+fi
+if ! pio run; then
+    echo "Build failed" >&2
+    exit 1
+fi

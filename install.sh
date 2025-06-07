@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Install and flash script for ESP32
-set -e
+set -Eeuo pipefail
+
+error_exit() {
+    echo "Error on line $1: $BASH_COMMAND" >&2
+    exit 1
+}
+trap 'error_exit $LINENO' ERR
 
 # Always pause before exiting so the terminal stays open on failure or success
 trap 'echo; read -n 1 -r -p "Press any key to exit..."' EXIT
@@ -53,6 +59,10 @@ fi
 # Ensure PlatformIO is installed
 if ! command -v pio >/dev/null 2>&1; then
     echo "Installing PlatformIO CLI..."
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "python3 is required to install PlatformIO." >&2
+        exit 1
+    fi
     pip_opts=""
     if [ -z "$VIRTUAL_ENV" ]; then
         pip_opts="--user"
@@ -88,8 +98,14 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Build firmware for esp32 environment
-pio lib -g install fastled/FastLED@3.9.20
-pio run -e esp32
+if ! pio lib -g install fastled/FastLED@3.9.20; then
+    echo "Library installation failed" >&2
+    exit 1
+fi
+if ! pio run -e esp32; then
+    echo "Build failed" >&2
+    exit 1
+fi
 
 BIN_PATH=.pio/build/esp32/firmware.bin
 if [ -f "$BIN_PATH" ]; then
