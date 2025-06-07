@@ -5,8 +5,9 @@ Pair of specs with magnifier glass upgraded with 13 LEDs.
 ## Firmware
 
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
-Copy `include/secrets_example.h` to `include/secrets.h` and add your WiFi
-credentials as `WIFI_SSID` and `WIFI_PASSWORD`.
+You can copy `include/secrets_example.h` to `include/secrets.h` and add your
+WiFi credentials manually, or simply run one of the helper scripts which will
+prompt for the SSID and password if the file is missing.
 To protect the web interface and WebSocket API you can set `USE_AUTH` to `1`
 and choose an `AUTH_TOKEN` in `secrets.h`. When enabled, the `/add` endpoint
 expects a `token` parameter and WebSocket commands must be prefixed with
@@ -58,9 +59,10 @@ wscat -c ws://<device_ip>:81/ -x set:2
 ```
 
 ### Building
-Before building, copy `include/secrets_example.h` to `include/secrets.h` and set
-your WiFi credentials.
-Run `setup.sh` once to install PlatformIO and build the firmware:
+Run `setup.sh` once to install PlatformIO and build the firmware. If
+`include/secrets.h` is missing the script will offer to create it and ask for
+your WiFi SSID and password. It also offers to create or use a Python virtual
+environment before installing dependencies:
 
 ```bash
 ./setup.sh
@@ -79,7 +81,9 @@ pio run --target upload
 ```
 
 Alternatively use `install.sh` to build the project, optionally export the
-compiled binary and flash a connected ESP32 automatically:
+compiled binary and flash a connected ESP32 automatically. If
+`include/secrets.h` is missing it will prompt for your WiFi details just like
+`setup.sh`. Both scripts also allow using a virtual environment:
 
 ```bash
 ./install.sh
