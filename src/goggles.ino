@@ -3,6 +3,7 @@
  * Provides WiFi control and OTA updates
  */
 #include "secrets.h"
+#include "utils.h"
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
@@ -235,18 +236,15 @@ void handleAdd() {
     return;
   }
 
-  colorStr = colorStr.substring(1);
-  for (size_t i = 0; i < colorStr.length(); ++i) {
-    if (!isxdigit(static_cast<unsigned char>(colorStr[i]))) {
-      server.send(400, "text/html",
-                  "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
-      return;
-    }
+  uint32_t colorVal;
+  if (!parseHexColor(colorStr.c_str() + 1, colorVal)) {
+    server.send(400, "text/html",
+                "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
+    return;
   }
 
-  long val = strtol(colorStr.c_str(), nullptr, 16);
   presets.push_back({name, PresetType::STATIC,
-                     CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
+                     CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF, colorVal & 0xFF)});
   currentPreset = presets.size() - 1;
   applyPreset();
 
