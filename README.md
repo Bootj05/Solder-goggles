@@ -16,6 +16,20 @@ credentials as `WIFI_SSID` and `WIFI_PASSWORD`.
 ### Hardware
 The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.
 
+### WebSocket API
+The firmware also runs a WebSocket server on port `81`. Send plain text commands
+to control the active preset. Example using [`wscat`](https://github.com/websockets/wscat):
+
+```bash
+wscat -c ws://<device_ip>:81/ -x next
+```
+
+Available commands:
+
+* `next` &mdash; switch to the next preset.
+* `prev` &mdash; switch to the previous preset.
+* `set:<n>` &mdash; activate the preset with index `<n>` (zero based), e.g. `set:0`.
+
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware:
 
