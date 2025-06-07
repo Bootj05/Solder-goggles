@@ -10,13 +10,25 @@ SED="sed"
 if command -v gsed >/dev/null 2>&1; then
     SED="gsed"
 fi
+
+HAS_GNU_SED=false
 if "$SED" --version 2>/dev/null | grep -q "GNU"; then
-    SED_INPLACE_ARGS=(-i)
-else
-    SED_INPLACE_ARGS=(-i '')
+    HAS_GNU_SED=true
 fi
+
 sed_inplace() {
-    "$SED" "${SED_INPLACE_ARGS[@]}" "$@"
+    local expr="$1"
+    local file="$2"
+    if $HAS_GNU_SED; then
+        "$SED" -i -e "$expr" "$file"
+    elif [[ "$(uname)" == "Darwin" ]]; then
+        "$SED" -i '' -e "$expr" "$file"
+    else
+        local tmp
+        tmp=$(mktemp)
+        "$SED" -e "$expr" "$file" > "$tmp"
+        mv "$tmp" "$file"
+    fi
 }
 
 # Escape special characters for sed replacement
