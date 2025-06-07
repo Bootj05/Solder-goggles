@@ -86,7 +86,12 @@ fi
 
 read -p "Flash firmware to $selected? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then
-    pio run -e esp32 --target upload --upload-port "$selected"
+    echo "Writing firmware..."
+    if ! pio run -e esp32 --target upload --upload-port "$selected"; then
+        echo "Flashing failed." >&2
+        exit 1
+    fi
+    echo "Flash complete."
 else
     echo "Flash cancelled."
 fi
