@@ -40,6 +40,7 @@ const char *TOKEN = AUTH_TOKEN;
  * - `FIRE`       Randomized warm flicker
  * - `CANDLE`     Single warm flickering glow
  * - `PARTY`      Random bright colors
+ * - `CUSTOM`     Per-LED colors stored from the client
  */
 enum class PresetType {
   STATIC,
@@ -50,12 +51,15 @@ enum class PresetType {
   LAVALAMP,
   FIRE,
   CANDLE,
-  PARTY
+  PARTY,
+  CUSTOM
 };
 struct Preset {
   String name;
   PresetType type;
   CRGB color; // Only for STATIC
+  CRGB leds[cfg::NUM_LEDS]; // Only for CUSTOM
+  uint8_t effects[cfg::NUM_LEDS]; // Optional per-LED effect
 };
 
 struct PresetData {
@@ -174,10 +178,37 @@ void loadCustomPresets() {
     String name = line.substring(0, first);
     int type = line.substring(first + 1, second).toInt();
     String colStr = line.substring(second + 1);
-    uint32_t val = strtoul(colStr.c_str(), nullptr, 16);
-    presets.push_back({name, static_cast<PresetType>(type),
-                       CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF,
-                            val & 0xFF)});
+    Preset p;
+    p.name = name;
+    p.type = static_cast<PresetType>(type);
+    p.color = CRGB::Black;
+    if (p.type == PresetType::CUSTOM) {
+      for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+        p.leds[i] = CRGB::Black;
+        p.effects[i] = 0;
+      }
+      int idx = 0;
+      while (idx < cfg::NUM_LEDS && colStr.length()) {
+        int sep = colStr.indexOf(';');
+        String tok = sep == -1 ? colStr : colStr.substring(0, sep);
+        if (tok.startsWith("#"))
+          tok.remove(0, 1);
+        uint32_t val;
+        if (parseHexColor(tok.c_str(), val)) {
+          p.leds[idx] = CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF,
+                             val & 0xFF);
+        }
+        if (sep == -1)
+          colStr = "";
+        else
+          colStr = colStr.substring(sep + 1);
+        ++idx;
+      }
+    } else {
+      uint32_t val = strtoul(colStr.c_str(), nullptr, 16);
+      p.color = CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+    }
+    presets.push_back(p);
   }
   f.close();
 }
@@ -187,11 +218,26 @@ void saveCustomPresets() {
   if (!f)
     return;
   for (size_t i = DEFAULT_PRESET_COUNT; i + 1 < presets.size(); ++i) {
-    char buf[64];
-    sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
-            static_cast<int>(presets[i].type), presets[i].color.r,
-            presets[i].color.g, presets[i].color.b);
-    f.print(buf);
+    if (presets[i].type == PresetType::CUSTOM) {
+      String line = presets[i].name + "," +
+                    String(static_cast<int>(presets[i].type)) + ",";
+      for (int j = 0; j < cfg::NUM_LEDS; ++j) {
+        char buf[8];
+        sprintf(buf, "%02x%02x%02x", presets[i].leds[j].r,
+                presets[i].leds[j].g, presets[i].leds[j].b);
+        line += buf;
+        if (j + 1 < cfg::NUM_LEDS)
+          line += ';';
+      }
+      line += "\n";
+      f.print(line);
+    } else {
+      char buf[64];
+      sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
+              static_cast<int>(presets[i].type), presets[i].color.r,
+              presets[i].color.g, presets[i].color.b);
+      f.print(buf);
+    }
   }
   f.close();
 }
@@ -250,6 +296,12 @@ void applyPreset() {
   case PresetType::PARTY: {
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
       leds[i] = CHSV(random8(), 255, 255);
+    }
+  } break;
+
+  case PresetType::CUSTOM: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = presets[currentPreset].leds[i];
     }
   } break;
   }
@@ -527,6 +579,32 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
       if (val > 0)
         animInterval = val;
     }
+  } else if (msg.startsWith("leds:")) {
+    String data = msg.substring(5);
+    presets[currentPreset].type = PresetType::CUSTOM;
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      presets[currentPreset].leds[i] = CRGB::Black;
+      presets[currentPreset].effects[i] = 0;
+    }
+    int idx = 0;
+    while (idx < cfg::NUM_LEDS && data.length()) {
+      int sep = data.indexOf(',');
+      String tok = sep == -1 ? data : data.substring(0, sep);
+      if (tok.startsWith("#"))
+        tok.remove(0, 1);
+      uint32_t val;
+      if (parseHexColor(tok.c_str(), val)) {
+        presets[currentPreset].leds[idx] =
+            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+      }
+      if (sep == -1)
+        data = "";
+      else
+        data = data.substring(sep + 1);
+      ++idx;
+    }
+    saveCustomPresets();
+    applyPreset();
   }
 }
 
