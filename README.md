@@ -25,6 +25,7 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Simple WebSocket API for remote control
 - Runtime WiFi configuration at `/wifi` (SSID, password and device name)
 - Custom mDNS hostname
+- Per-LED custom colors stored as a new `CUSTOM` preset
 
 ### Hardware
 The previous and next buttons are wired as active-low. Pins 34--39 on the
@@ -51,6 +52,8 @@ Available commands:
 * `bright:<0-255>` &mdash; set global LED brightness.
 * `color:#RRGGBB` &mdash; change the color of the active preset.
 * `speed:<ms>` &mdash; change animation update interval in milliseconds.
+* `leds:#RRGGBB,...` &mdash; set colors for each LED of the active preset and
+  store them as a `CUSTOM` preset.
 
 ### WebSocket Commands
 
