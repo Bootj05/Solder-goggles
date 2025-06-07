@@ -64,15 +64,17 @@ struct PresetData {
   CRGB color;
 };
 
-const {"White", PresetType::STATIC, CRGB::White},
-                            {"Rainbow", PresetType::RAINBOW, CRGB::Black},
-                            {"Police NL", PresetType::POLICE_NL, CRGB::Black},
-                            {"Police USA", PresetType::POLICE_USA, CRGB::Black},
-                            {"Strobe", PresetType::STROBE, CRGB::Black},
-                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
-                            {"Fire", PresetType::FIRE, CRGB::Black},
-                            {"Candle", PresetType::CANDLE, CRGB::Black},
-                            {"Party", PresetType::PARTY, CRGB::Black}};
+const PROGMEM PresetData defaultPresets[] = {
+    {"White", PresetType::STATIC, CRGB::White},
+    {"Rainbow", PresetType::RAINBOW, CRGB::Black},
+    {"Police NL", PresetType::POLICE_NL, CRGB::Black},
+    {"Police USA", PresetType::POLICE_USA, CRGB::Black},
+    {"Strobe", PresetType::STROBE, CRGB::Black},
+    {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
+    {"Fire", PresetType::FIRE, CRGB::Black},
+    {"Candle", PresetType::CANDLE, CRGB::Black},
+    {"Party", PresetType::PARTY, CRGB::Black}
+};
 std::vector<Preset> presets;
 const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
 
