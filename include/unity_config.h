@@ -1,3 +1,5 @@
-#ifndef UNITY_CONFIG_H
-#define UNITY_CONFIG_H
-#endif
+// Copyright 2025 Bootj05
+#ifndef INCLUDE_UNITY_CONFIG_H_
+#define INCLUDE_UNITY_CONFIG_H_
+
+#endif  // INCLUDE_UNITY_CONFIG_H_

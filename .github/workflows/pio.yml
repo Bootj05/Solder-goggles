@@ -17,7 +17,7 @@ jobs:
         run: cp include/secrets_example.h include/secrets.h
       - name: Lint sources
         run: |
-          cpplint --recursive src include test || true
+          cpplint --recursive src include test
       - name: Run tests
         run: pio test -e native
       - name: Build firmware
