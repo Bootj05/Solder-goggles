@@ -130,3 +130,13 @@ Run the linter after making changes:
 ```bash
 cpplint --recursive src include test
 ```
+
+### Running Tests
+Execute unit tests locally with the `native` environment:
+
+```bash
+pio test -e native
+```
+
+ESP32 environments defined in `platformio.ini` are skipped unless an Arduino
+test skeleton is available.
