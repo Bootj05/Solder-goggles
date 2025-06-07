@@ -2,6 +2,20 @@
 # Set up PlatformIO and build the firmware
 set -e
 
+# Determine sed command and in-place arguments
+SED="sed"
+if command -v gsed >/dev/null 2>&1; then
+    SED="gsed"
+fi
+if "$SED" --version 2>/dev/null | grep -q "GNU"; then
+    SED_INPLACE_ARGS=(-i)
+else
+    SED_INPLACE_ARGS=(-i '')
+fi
+sed_inplace() {
+    "$SED" "${SED_INPLACE_ARGS[@]}" "$@"
+}
+
 # Offer a Python virtual environment
 read -p "Use a Python virtual environment? [y/N] " use_venv
 if [[ $use_venv =~ ^[Yy]$ ]]; then
@@ -41,8 +55,8 @@ if [ ! -f include/secrets.h ]; then
         cp include/secrets_example.h include/secrets.h
         read -p "WiFi SSID: " wifi_ssid
         read -p "WiFi password: " wifi_pass
-        sed -i "s|#define WIFI_SSID .*|#define WIFI_SSID \"${wifi_ssid}\"|" include/secrets.h
-        sed -i "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${wifi_pass}\"|" include/secrets.h
+        sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${wifi_ssid}\"|" include/secrets.h
+        sed_inplace "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${wifi_pass}\"|" include/secrets.h
         echo "Created include/secrets.h"
     else
         echo "Please create include/secrets.h before proceeding." >&2
