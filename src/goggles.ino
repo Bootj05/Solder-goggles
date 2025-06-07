@@ -473,6 +473,9 @@ const char HTML_PAGE[] PROGMEM = R"html(
 
 void handleRoot() {
   String presetList;
+  // Reserve some space to avoid repeated reallocations while building the
+  // preset list. Each list element is roughly 80 characters long.
+  presetList.reserve(presets.size() * 80);
   for (size_t i = 0; i < presets.size(); ++i) {
     presetList += "<li class='list-group-item position-relative'>";
     presetList += "<a href='/set?i=" + String(i) +
