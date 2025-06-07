@@ -25,6 +25,7 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Web interface for switching LED presets
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
+- Bluetooth serial control with the same commands
 - Runtime WiFi configuration at `/wifi` (SSID, password and device name)
 - Custom mDNS hostname
 - Per-LED custom colors stored as a new `CUSTOM` preset
@@ -71,6 +72,12 @@ wscat -c ws://<device_ip>:81/ -x prev
 # Explicitly select preset number 2
 wscat -c ws://<device_ip>:81/ -x set:2
 ```
+
+### Bluetooth Serial
+
+Pair with the device over Bluetooth and open a serial terminal at `115200`
+baud. Send the same commands listed above, one per line. The Bluetooth
+device name matches the WiFi hostname.
 
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware. If
