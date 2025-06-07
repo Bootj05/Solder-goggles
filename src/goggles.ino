@@ -80,6 +80,7 @@ const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPrese
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
 uint8_t rainbowHue = 0;
+
 unsigned long lastAnim = 0;
 uint8_t brightness = 255;
 unsigned long animInterval = 50;
@@ -187,14 +188,18 @@ void applyPreset() {
   case PresetType::STATIC:
     fill_solid(leds, cfg::NUM_LEDS, presets[currentPreset].color);
     break;
+
   case PresetType::RAINBOW:
-    fill_rainbow(leds, cfg::NUM_LEDS, rainbowHue++, 7);
+    EVERY_N_MILLISECONDS(50) { ++rainbowHue; }
+    fill_rainbow(leds, cfg::NUM_LEDS, rainbowHue, 7);
     break;
+
   case PresetType::POLICE_NL:
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
       leds[i] = (i % 4 < 2) ? CRGB::Blue : CRGB::White;
     }
     break;
+
   case PresetType::POLICE_USA:
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
       leds[i] = (i % 6 < 2)   ? CRGB::Red
@@ -202,17 +207,19 @@ void applyPreset() {
                               : CRGB::Blue;
     }
     break;
+
   case PresetType::STROBE: {
     static bool on = false;
+    EVERY_N_MILLISECONDS(50) { on = !on; }
     fill_solid(leds, cfg::NUM_LEDS, on ? CRGB::White : CRGB::Black);
-    on = !on;
   } break;
+
   case PresetType::LAVALAMP: {
     static uint8_t lavaPos = 0;
+    EVERY_N_MILLISECONDS(50) { ++lavaPos; }
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
       leds[i] = CHSV((lavaPos + i * 10) % 255, 200, 255);
     }
-    ++lavaPos;
   } break;
   case PresetType::FIRE: {
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
@@ -230,6 +237,7 @@ void applyPreset() {
     }
   } break;
   }
+
   FastLED.show();
 }
 
