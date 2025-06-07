@@ -1,4 +1,5 @@
 #pragma once
+// Copyright 2025 Bootj05
 
 #define WIFI_SSID "changeme"
 #define WIFI_PASSWORD "changeme"
