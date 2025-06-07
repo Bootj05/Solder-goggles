@@ -18,11 +18,11 @@ fi
 # Detect platformio
 if ! command -v pio >/dev/null 2>&1; then
     echo "Installing PlatformIO CLI..."
-    pip_opts=""
-    if [ -z "$VIRTUAL_ENV" ]; then
-        pip_opts="--user"
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "python3 is required but not found. Please install Python 3 and pip." >&2
+        exit 1
     fi
-    if ! python3 -m pip install $pip_opts -U platformio; then
+    if ! python3 -m pip install --user -U platformio; then
         echo "Failed to install PlatformIO." >&2
         echo "Please check your network connection or install it manually:" >&2
         echo "https://docs.platformio.org/en/latest/core/installation.html" >&2
