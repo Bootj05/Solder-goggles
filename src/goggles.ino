@@ -34,6 +34,9 @@ const char *TOKEN = AUTH_TOKEN;
  * - `POLICE_USA` Red, white and blue pattern similar to US police lights
  * - `STROBE`     Fast white flash on and off
  * - `LAVALAMP`   Slowly moving color gradient
+ * - `FIRE`       Randomized warm flicker
+ * - `CANDLE`     Single warm flickering glow
+ * - `PARTY`      Random bright colors
  */
 enum class PresetType {
   STATIC,
@@ -41,7 +44,10 @@ enum class PresetType {
   POLICE_NL,
   POLICE_USA,
   STROBE,
-  LAVALAMP
+  LAVALAMP,
+  FIRE,
+  CANDLE,
+  PARTY
 };
 struct Preset {
   String name;
@@ -54,7 +60,10 @@ std::vector<Preset> presets{{"White", PresetType::STATIC, CRGB::White},
                             {"Police NL", PresetType::POLICE_NL, CRGB::Black},
                             {"Police USA", PresetType::POLICE_USA, CRGB::Black},
                             {"Strobe", PresetType::STROBE, CRGB::Black},
-                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black}};
+                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
+                            {"Fire", PresetType::FIRE, CRGB::Black},
+                            {"Candle", PresetType::CANDLE, CRGB::Black},
+                            {"Party", PresetType::PARTY, CRGB::Black}};
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
@@ -120,6 +129,21 @@ void applyPreset() {
       leds[i] = CHSV((lavaPos + i * 10) % 255, 200, 255);
     }
     ++lavaPos;
+  } break;
+  case PresetType::FIRE: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(0, 40), 255, random8(120, 255));
+    }
+  } break;
+  case PresetType::CANDLE: {
+    uint8_t bri = random8(150, 255);
+    CRGB color = CHSV(random8(25, 45), 200, bri);
+    fill_solid(leds, cfg::NUM_LEDS, color);
+  } break;
+  case PresetType::PARTY: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(), 255, 255);
+    }
   } break;
   }
   FastLED.show();
