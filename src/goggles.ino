@@ -3,6 +3,7 @@
  * Provides WiFi control and OTA updates
  */
 #include "secrets.h"
+#include "utils.h"
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
@@ -21,6 +22,9 @@ constexpr uint8_t BTN_PREV = 0;
 constexpr uint8_t BTN_NEXT = 35;
 const char *SSID = WIFI_SSID;
 const char *PASSWORD = WIFI_PASSWORD;
+#ifdef USE_AUTH
+const char *TOKEN = AUTH_TOKEN;
+#endif
 } // namespace cfg
 
 /**
@@ -32,6 +36,9 @@ const char *PASSWORD = WIFI_PASSWORD;
  * - `POLICE_USA` Red, white and blue pattern similar to US police lights
  * - `STROBE`     Fast white flash on and off
  * - `LAVALAMP`   Slowly moving color gradient
+ * - `FIRE`       Randomized warm flicker
+ * - `CANDLE`     Single warm flickering glow
+ * - `PARTY`      Random bright colors
  */
 enum class PresetType {
   STATIC,
@@ -39,7 +46,10 @@ enum class PresetType {
   POLICE_NL,
   POLICE_USA,
   STROBE,
-  LAVALAMP
+  LAVALAMP,
+  FIRE,
+  CANDLE,
+  PARTY
 };
 struct Preset {
   String name;
@@ -53,16 +63,18 @@ struct PresetData {
   CRGB color;
 };
 
-const PresetData defaultPresets[] PROGMEM = {
-    {"White", PresetType::STATIC, CRGB::White},
-    {"Rainbow", PresetType::RAINBOW, CRGB::Black},
-    {"Police NL", PresetType::POLICE_NL, CRGB::Black},
-    {"Police USA", PresetType::POLICE_USA, CRGB::Black},
-    {"Strobe", PresetType::STROBE, CRGB::Black},
-    {"Lavalamp", PresetType::LAVALAMP, CRGB::Black}};
-
+const {"White", PresetType::STATIC, CRGB::White},
+                            {"Rainbow", PresetType::RAINBOW, CRGB::Black},
+                            {"Police NL", PresetType::POLICE_NL, CRGB::Black},
+                            {"Police USA", PresetType::POLICE_USA, CRGB::Black},
+                            {"Strobe", PresetType::STROBE, CRGB::Black},
+                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
+                            {"Fire", PresetType::FIRE, CRGB::Black},
+                            {"Candle", PresetType::CANDLE, CRGB::Black},
+                            {"Party", PresetType::PARTY, CRGB::Black}};
 std::vector<Preset> presets;
 const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
+
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
@@ -176,6 +188,21 @@ void applyPreset() {
     }
     ++lavaPos;
   } break;
+  case PresetType::FIRE: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(0, 40), 255, random8(120, 255));
+    }
+  } break;
+  case PresetType::CANDLE: {
+    uint8_t bri = random8(150, 255);
+    CRGB color = CHSV(random8(25, 45), 200, bri);
+    fill_solid(leds, cfg::NUM_LEDS, color);
+  } break;
+  case PresetType::PARTY: {
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      leds[i] = CHSV(random8(), 255, 255);
+    }
+  } break;
   }
   FastLED.show();
 }
@@ -244,6 +271,13 @@ void handleRoot() {
  * Add a new static preset from form input
  */
 void handleAdd() {
+#if USE_AUTH
+  if (!server.hasArg("token") || server.arg("token") != cfg::TOKEN) {
+    server.send(403, "text/html",
+                "<html><body><p>Invalid token.</p><a href='/' >Back</a></body></html>");
+    return;
+  }
+#endif
   if (!server.hasArg("name") || !server.hasArg("color")) {
     server.send(400, "text/html",
                 "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");
@@ -259,18 +293,15 @@ void handleAdd() {
     return;
   }
 
-  colorStr = colorStr.substring(1);
-  for (size_t i = 0; i < colorStr.length(); ++i) {
-    if (!isxdigit(static_cast<unsigned char>(colorStr[i]))) {
-      server.send(400, "text/html",
-                  "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
-      return;
-    }
+  uint32_t colorVal;
+  if (!parseHexColor(colorStr.c_str() + 1, colorVal)) {
+    server.send(400, "text/html",
+                "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
+    return;
   }
 
-  long val = strtol(colorStr.c_str(), nullptr, 16);
   presets.push_back({name, PresetType::STATIC,
-                     CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
+                     CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF, colorVal & 0xFF)});
   currentPreset = presets.size() - 1;
   saveCustomPresets();
   applyPreset();
@@ -286,6 +317,12 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   if (type != WStype_TEXT)
     return;
   String msg = String((char *)payload);
+#if USE_AUTH
+  String prefix = String(cfg::TOKEN) + ":";
+  if (!msg.startsWith(prefix))
+    return;
+  msg = msg.substring(prefix.length());
+#endif
   if (msg == "next")
     nextPreset();
   else if (msg == "prev")

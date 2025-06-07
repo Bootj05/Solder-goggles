@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Prepare secrets
+        run: cp include/secrets_example.h include/secrets.h
+      - name: Run tests
+        run: pio test -e native
+      - name: Build firmware
+        run: pio run -e esp32
