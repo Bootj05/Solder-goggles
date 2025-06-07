@@ -121,7 +121,7 @@ echo "Searching for connected ESP32 boards..."
 mapfile -t ports < <(pio device list | awk '/tty/ {print $1}')
 
 if [ ${#ports[@]} -eq 0 ]; then
-    echo "No serial ports detected." >&2
+    echo "No serial ports detected. Connect your ESP32 and ensure drivers are installed." >&2
     exit 1
 fi
 
