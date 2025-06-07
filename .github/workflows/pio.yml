@@ -12,9 +12,12 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install PlatformIO
-        run: pip install platformio
+        run: pip install platformio cpplint
       - name: Prepare secrets
         run: cp include/secrets_example.h include/secrets.h
+      - name: Lint sources
+        run: |
+          cpplint --recursive src include test || true
       - name: Run tests
         run: pio test -e native
       - name: Build firmware
