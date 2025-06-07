@@ -22,6 +22,16 @@ const char *SSID = WIFI_SSID;
 const char *PASSWORD = WIFI_PASSWORD;
 } // namespace cfg
 
+/**
+ * Types of LED animations.
+ *
+ * - `STATIC`     Solid color chosen per preset
+ * - `RAINBOW`    Continuously cycling rainbow
+ * - `POLICE_NL`  Blue and white pattern similar to Dutch police lights
+ * - `POLICE_USA` Red, white and blue pattern similar to US police lights
+ * - `STROBE`     Fast white flash on and off
+ * - `LAVALAMP`   Slowly moving color gradient
+ */
 enum class PresetType {
   STATIC,
   RAINBOW,
