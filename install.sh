@@ -97,8 +97,8 @@ if [ ! -f include/secrets.h ]; then
     fi
 fi
 
-# Build firmware for esp32 environment
-if ! pio lib -g install fastled/FastLED@3.9.20; then
+# Install FastLED library and build firmware for esp32 environment
+if ! pio pkg install -g fastled/FastLED@3.9.20; then
     echo "Library installation failed" >&2
     exit 1
 fi
