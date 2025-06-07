@@ -42,6 +42,21 @@ Available commands:
 * `color:#RRGGBB` &mdash; change the color of the active preset.
 * `speed:<ms>` &mdash; change animation update interval in milliseconds.
 
+### WebSocket Commands
+
+Below are example messages for each command when using [`wscat`](https://github.com/websockets/wscat):
+
+```bash
+# Advance to the next preset
+wscat -c ws://<device_ip>:81/ -x next
+
+# Go back to the previous preset
+wscat -c ws://<device_ip>:81/ -x prev
+
+# Explicitly select preset number 2
+wscat -c ws://<device_ip>:81/ -x set:2
+```
+
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware:
 
