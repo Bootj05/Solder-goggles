@@ -3,3 +3,5 @@
 *.env
 # Ignore secret configuration
 *.secret
+# PlatformIO build directory
+.pio/
