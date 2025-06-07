@@ -11,7 +11,7 @@ fi
 
 # Verify secrets.h exists before building
 if [ ! -f include/secrets.h ]; then
-    echo "Error: include/secrets.h not found." >&2
+    echo "include/secrets.h not found." >&2
     echo "Copy include/secrets_example.h to include/secrets.h and set your WiFi credentials." >&2
     exit 1
 fi
