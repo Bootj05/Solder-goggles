@@ -20,6 +20,9 @@ constexpr uint8_t BTN_PREV = 0;
 constexpr uint8_t BTN_NEXT = 35;
 const char *SSID = WIFI_SSID;
 const char *PASSWORD = WIFI_PASSWORD;
+#ifdef USE_AUTH
+const char *TOKEN = AUTH_TOKEN;
+#endif
 } // namespace cfg
 
 /**
@@ -186,6 +189,13 @@ void handleRoot() {
  * Add a new static preset from form input
  */
 void handleAdd() {
+#if USE_AUTH
+  if (!server.hasArg("token") || server.arg("token") != cfg::TOKEN) {
+    server.send(403, "text/html",
+                "<html><body><p>Invalid token.</p><a href='/' >Back</a></body></html>");
+    return;
+  }
+#endif
   if (!server.hasArg("name") || !server.hasArg("color")) {
     server.send(400, "text/html",
                 "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");
@@ -227,6 +237,12 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   if (type != WStype_TEXT)
     return;
   String msg = String((char *)payload);
+#if USE_AUTH
+  String prefix = String(cfg::TOKEN) + ":";
+  if (!msg.startsWith(prefix))
+    return;
+  msg = msg.substring(prefix.length());
+#endif
   if (msg == "next")
     nextPreset();
   else if (msg == "prev")
