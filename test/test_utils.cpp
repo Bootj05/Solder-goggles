@@ -1,6 +1,6 @@
 #include <unity.h>
 // Copyright 2025 Bootj05
-#include "include/utils.h"
+#include "utils.h"
 
 void test_valid_color() {
     uint32_t val;
