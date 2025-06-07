@@ -256,19 +256,94 @@ void applyPreset() {
     fill_rainbow(leds, cfg::NUM_LEDS, rainbowHue, 7);
     break;
 
-  case PresetType::POLICE_NL:
-    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
-      leds[i] = (i % 4 < 2) ? CRGB::Blue : CRGB::White;
-    }
-    break;
+  case PresetType::POLICE_NL: {
+    static bool phase = false;        // false = groups 1&3, true = groups 2&4
+    static uint32_t lastToggle = 0;
+    static uint32_t flashCount = 0;
+    static bool strobe = false;
+    static uint8_t strobeGroup = 0;   // 1 or 2 when strobing
+    const uint16_t flashInterval = 500;  // ms
+    const uint16_t strobeInterval = 50;  // ms
 
-  case PresetType::POLICE_USA:
-    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
-      leds[i] = (i % 6 < 2)   ? CRGB::Red
-                : (i % 6 < 4) ? CRGB::White
-                              : CRGB::Blue;
+    if (millis() - lastToggle >= flashInterval) {
+      phase = !phase;
+      lastToggle = millis();
+      ++flashCount;
+      strobe = false;
+      strobeGroup = 0;
+      if (flashCount % 20 == 0) {
+        strobe = true;
+        strobeGroup = 1;  // groups 1 & 3
+      } else if (flashCount % 20 == 10) {
+        strobe = true;
+        strobeGroup = 2;  // groups 2 & 4
+      }
+    }
+
+    auto setGroup = [&](int start, int count, CRGB color) {
+      for (int i = start; i < start + count; ++i) {
+        leds[i] = color;
+      }
+    };
+
+    bool strobeOn = strobe && ((millis() / strobeInterval) % 2 == 0);
+
+    // Map groups: 0-2, 3-5, 6-8, 9-12
+    if (strobe) {
+      if (strobeGroup == 1) {
+        setGroup(0, 3, strobeOn ? CRGB::Blue : CRGB::Black);
+        setGroup(6, 3, strobeOn ? CRGB::Blue : CRGB::Black);
+        setGroup(3, 3, CRGB::Black);
+        setGroup(9, 4, CRGB::Black);
+      } else {
+        setGroup(3, 3, strobeOn ? CRGB::White : CRGB::Black);
+        setGroup(9, 4, strobeOn ? CRGB::White : CRGB::Black);
+        setGroup(0, 3, CRGB::Black);
+        setGroup(6, 3, CRGB::Black);
+      }
+    } else if (!phase) {
+      setGroup(0, 3, CRGB::Blue);
+      setGroup(6, 3, CRGB::Blue);
+      setGroup(3, 3, CRGB::Black);
+      setGroup(9, 4, CRGB::Black);
+    } else {
+      setGroup(3, 3, CRGB::White);
+      setGroup(9, 4, CRGB::White);
+      setGroup(0, 3, CRGB::Black);
+      setGroup(6, 3, CRGB::Black);
     }
     break;
+  }
+
+  case PresetType::POLICE_USA: {
+    static uint8_t step = 0;
+    static uint32_t lastPulse = 0;
+    const uint8_t pulses = 3;
+    const uint16_t pulseInterval = 150;  // ms per on/off step
+
+    if (millis() - lastPulse >= pulseInterval) {
+      lastPulse = millis();
+      step = (step + 1) % (pulses * 4);
+    }
+
+    bool on = (step % 2 == 0);
+    bool left = (step / (pulses * 2)) % 2 == 0;
+
+    auto setRange = [&](int start, int count, CRGB color) {
+      for (int i = start; i < start + count; ++i) {
+        leds[i] = color;
+      }
+    };
+
+    if (on) {
+      setRange(0, 6, left ? CRGB::Red : CRGB::Black);
+      setRange(6, 1, CRGB::White);
+      setRange(7, 6, left ? CRGB::Black : CRGB::Blue);
+    } else {
+      fill_solid(leds, cfg::NUM_LEDS, CRGB::Black);
+    }
+    break;
+  }
 
   case PresetType::STROBE: {
     static bool on = false;
