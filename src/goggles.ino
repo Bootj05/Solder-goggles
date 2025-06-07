@@ -588,26 +588,25 @@ void handleBright() {
 /**
  * Display form for WiFi credentials
  */
+const char WIFI_FORM_HTML[] PROGMEM = R"html(
+<!DOCTYPE html><html><head><title>WiFi Setup</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'></head>
+<body class='container py-4'>
+<h1 class='mb-3'>WiFi Credentials</h1>
+<form method='POST' action='/wifi' class='row g-3'>
+<div class='col-12'><label class='form-label' for='ssid'>SSID</label>
+<input class='form-control' id='ssid' name='ssid'></div>
+<div class='col-12'><label class='form-label' for='password'>Password</label>
+<input class='form-control' id='password' name='password' type='password'></div>
+<div class='form-group'><label for='host'>Device name</label>
+<input class='form-control' id='host' name='host'></div>
+<button class='btn btn-primary'>Save</button></form>
+</body></html>
+)html";
+
 void handleWifiForm() {
-  String html =
-      "<!DOCTYPE html><html><head><title>WiFi Setup</title>"
-      "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-      "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'></head>"
-      "<body class='container py-4'>"
-      "<h1 class='mb-3'>WiFi Credentials</h1>"
-      "<form method='POST' action='/wifi' class='row g-3'>"
-      "<div class='col-12'><label class='form-label' for='ssid'>SSID</label>"
-      "<input class='form-control' id='ssid' name='ssid' value='" +
-      storedSSID + "'></div>"
-      "<div class='col-12'><label class='form-label' for='password'>Password</label>"
-      "<input class='form-control' id='password' name='password' type='password' value='" +
-      storedPassword + "'></div>"
-      "<div class='form-group'><label for='host'>Device name</label>"
-      "<input class='form-control' id='host' name='host' value='" +
-      storedHostname + "'></div>"
-      "<button class='btn btn-primary'>Save</button></form>"
-      "</body></html>";
-  server.send(200, "text/html", html);
+  server.send_P(200, "text/html", WIFI_FORM_HTML);
 }
 
 /**
