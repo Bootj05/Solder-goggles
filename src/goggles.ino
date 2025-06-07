@@ -205,6 +205,7 @@ uint32_t animInterval = 50;
 bool wifiConnecting = false;
 uint32_t wifiConnectStart = 0;
 uint32_t wifiLastPrint = 0;
+bool wifiApActive = false;
 
 Preferences prefs;
 String storedSSID;
@@ -248,6 +249,7 @@ void connectWiFi() {
       storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
+  wifiApActive = false;
   WiFi.begin(ssid, pass);
   wifiConnectStart = millis();
   wifiConnecting = true;
@@ -275,6 +277,14 @@ void handleWiFi() {
   if (millis() - wifiConnectStart > 15000) {
     wifiConnecting = false;
     Serial.println(" failed to connect.");
+    WiFi.mode(WIFI_AP);
+    if (WiFi.softAP(host)) {
+      Serial.print("Started access point ");
+      Serial.print(host);
+      Serial.print(" at ");
+      Serial.println(WiFi.softAPIP());
+    }
+    wifiApActive = true;
     return;
   }
   if (millis() - wifiLastPrint > 500) {
