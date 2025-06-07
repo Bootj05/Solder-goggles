@@ -16,6 +16,11 @@ sed_inplace() {
     "$SED" "${SED_INPLACE_ARGS[@]}" "$@"
 }
 
+# Escape special characters for sed replacement
+escape_sed_replacement() {
+    printf '%s' "$1" | sed -e 's/[\\/&|]/\\&/g'
+}
+
 # Offer a Python virtual environment
 read -p "Use a Python virtual environment? [y/N] " use_venv
 if [[ $use_venv =~ ^[Yy]$ ]]; then
@@ -55,8 +60,10 @@ if [ ! -f include/secrets.h ]; then
         cp include/secrets_example.h include/secrets.h
         read -p "WiFi SSID: " wifi_ssid
         read -p "WiFi password: " wifi_pass
-        sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${wifi_ssid}\"|" include/secrets.h
-        sed_inplace "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${wifi_pass}\"|" include/secrets.h
+        ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
+        pass_escaped=$(escape_sed_replacement "$wifi_pass")
+        sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h
+        sed_inplace "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${pass_escaped}\"|" include/secrets.h
         echo "Created include/secrets.h"
     else
         echo "Please create include/secrets.h before proceeding." >&2
