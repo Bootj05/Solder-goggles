@@ -6,7 +6,9 @@ Pair of specs with magnifier glass upgraded with 13 LEDs.
 
 `python3` and `pip` must be installed before running `setup.sh` or
 `install.sh`. These scripts will install PlatformIO automatically. You
-can use a Python virtual environment if preferred.
+can use a Python virtual environment if preferred. If any command fails
+the scripts report the line number and offending command so problems are
+easy to track down.
 
 ## Firmware
 
@@ -111,7 +113,8 @@ pio run -e esp32-ota --target upload --upload-port <ip_or_hostname>
 Alternatively use `install.sh` to build the project, optionally export the
 compiled binary and flash a connected ESP32 automatically. If
 `include/secrets.h` is missing it will prompt for your WiFi details just like
-`setup.sh`. Both scripts also allow using a virtual environment:
+`setup.sh`. Both scripts also allow using a virtual environment and print
+the failing command when something goes wrong:
 
 ```bash
 ./install.sh
