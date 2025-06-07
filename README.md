@@ -22,6 +22,8 @@ to control the active preset. Example using [`wscat`](https://github.com/websock
 
 ```bash
 wscat -c ws://<device_ip>:81/ -x next
+# set brightness to half
+wscat -c ws://<device_ip>:81/ -x bright:128
 ```
 
 Available commands:
@@ -29,6 +31,9 @@ Available commands:
 * `next` &mdash; switch to the next preset.
 * `prev` &mdash; switch to the previous preset.
 * `set:<n>` &mdash; activate the preset with index `<n>` (zero based), e.g. `set:0`.
+* `bright:<0-255>` &mdash; set global LED brightness.
+* `color:#RRGGBB` &mdash; change the color of the active preset.
+* `speed:<ms>` &mdash; change animation update interval in milliseconds.
 
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware:

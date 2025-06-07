@@ -57,6 +57,8 @@ CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
 uint8_t rainbowHue = 0;
 unsigned long lastAnim = 0;
+uint8_t brightness = 255;
+unsigned long animInterval = 50;
 
 WebServer server(80);
 WebSocketsServer ws(81);
@@ -245,6 +247,46 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
         applyPreset();
       }
     }
+  } else if (msg.startsWith("bright:")) {
+    String valStr = msg.substring(7);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val >= 0 && val <= 255) {
+        brightness = val;
+        FastLED.setBrightness(brightness);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("color:")) {
+    String colorStr = msg.substring(6);
+    if (colorStr.length() == 7 && colorStr[0] == '#') {
+      colorStr = colorStr.substring(1);
+      bool hexOnly = colorStr.length() == 6;
+      for (size_t i = 0; i < colorStr.length() && hexOnly; ++i) {
+        hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
+      }
+      if (hexOnly) {
+        long val = strtol(colorStr.c_str(), nullptr, 16);
+        presets[currentPreset].color =
+            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("speed:")) {
+    String valStr = msg.substring(6);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val > 0)
+        animInterval = val;
+    }
   }
 }
 
@@ -257,6 +299,7 @@ void setup() {
   // Buttons use internal pull-ups and are thus active-low
   pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
+  FastLED.setBrightness(brightness);
 
   connectWiFi();
   if (MDNS.begin("JohannesBril")) {
@@ -303,7 +346,7 @@ void loop() {
   ws.loop();
   ArduinoOTA.handle();
 
-  if (millis() - lastAnim > 50) {
+  if (millis() - lastAnim > animInterval) {
     applyPreset();
     lastAnim = millis();
   }
