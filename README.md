@@ -15,7 +15,8 @@ easy to track down.
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
 You can copy `include/secrets_example.h` to `include/secrets.h` and add your
 WiFi credentials manually, or simply run one of the helper scripts which will
-prompt for the SSID and password if the file is missing.
+prompt for the SSID and password if the file is missing. The password prompt is
+hidden so it isn't echoed back to the terminal.
 To protect the web interface and WebSocket API you can set `USE_AUTH` to `1`
 and choose an `AUTH_TOKEN` in `secrets.h`. When enabled, the `/add` endpoint
 expects a `token` parameter and WebSocket commands must be prefixed with
@@ -81,15 +82,17 @@ device name matches the WiFi hostname.
 
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware. If
-`include/secrets.h` is missing the script will offer to create it and ask for
-your WiFi SSID and password. It also offers to create or use a Python virtual
-environment before installing dependencies:
+`include/secrets.h` is missing the script will offer to create it and prompt for
+your WiFi SSID and password. The password entry is hidden for security.
+Dependencies are fetched using `pio pkg install`. The script also offers to
+create or use a Python virtual environment before installing dependencies:
 
 ```bash
 ./setup.sh
 ```
 
-If you already have PlatformIO installed you can build manually with:
+If you already have PlatformIO installed you can build manually. Run
+`pio pkg install` once to download the libraries, then build with:
 
 ```bash
 pio run
