@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Set up PlatformIO and build the firmware
 set -e
 
