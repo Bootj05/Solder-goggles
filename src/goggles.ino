@@ -234,6 +234,20 @@ void saveCredentials(const String &ssid, const String &password,
   storedHostname = host;
 }
 
+void loadSettings() {
+  prefs.begin("settings", true);
+  brightness = prefs.getUChar("bright", brightness);
+  currentPreset = prefs.getInt("preset", currentPreset);
+  prefs.end();
+}
+
+void saveSettings() {
+  prefs.begin("settings", false);
+  prefs.putUChar("bright", brightness);
+  prefs.putInt("preset", currentPreset);
+  prefs.end();
+}
+
 /**
  * Connect to WiFi using stored credentials if available
  */
@@ -556,6 +570,7 @@ void applyPreset() {
  */
 void nextPreset() {
   currentPreset = (currentPreset + 1) % presets.size();
+  saveSettings();
   applyPreset();
 }
 
@@ -564,6 +579,7 @@ void nextPreset() {
  */
 void previousPreset() {
   currentPreset = (currentPreset - 1 + presets.size()) % presets.size();
+  saveSettings();
   applyPreset();
 }
 
@@ -694,6 +710,7 @@ void handleAdd() {
     presets.insert(presets.end() - 1, p);
   }
   currentPreset = presets.size() - 2;
+  saveSettings();
   saveCustomPresets();
   applyPreset();
 
@@ -715,6 +732,7 @@ void handleSet() {
     return;
   }
   currentPreset = idx;
+  saveSettings();
   applyPreset();
   server.sendHeader("Location", "/");
   server.send(303);
@@ -747,6 +765,7 @@ void handleBright() {
   }
   brightness = val;
   FastLED.setBrightness(brightness);
+  saveSettings();
   applyPreset();
   server.sendHeader("Location", "/");
   server.send(303);
@@ -821,6 +840,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
       int idx = idxStr.toInt();
       if (idx >= 0 && idx < presets.size()) {
         currentPreset = idx;
+        saveSettings();
         applyPreset();
       }
     }
@@ -835,6 +855,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
       if (val >= 0 && val <= 255) {
         brightness = val;
         FastLED.setBrightness(brightness);
+        saveSettings();
         applyPreset();
       }
     }
@@ -910,7 +931,6 @@ void setup() {
   else
     pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
-  FastLED.setBrightness(brightness);
 
   SPIFFS.begin(true);
   loadDefaultPresets();
@@ -926,7 +946,10 @@ void setup() {
     p.color = CRGB::Black;
     presets.push_back(p);
   }
-  currentPreset = presets.size() - 1;
+  loadSettings();
+  if (currentPreset < 0 || currentPreset >= presets.size())
+    currentPreset = presets.size() - 1;
+  FastLED.setBrightness(brightness);
 
   connectWiFi();
 
