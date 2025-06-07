@@ -468,13 +468,13 @@ const char HTML_PAGE[] PROGMEM = R"html(
 void handleRoot() {
   String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    presetList +=
-        "<li class='list-group-item d-flex justify-content-between align-items-center position-relative'>";
+    presetList += "<li class='list-group-item position-relative'>";
+    presetList += "<a href='/set?i=" + String(i) +
+                   "' class='d-flex justify-content-between align-items-center text-reset text-decoration-none stretched-link'>";
     presetList += presets[i].name;
     if (i == currentPreset)
-      presetList += " <span class='badge bg-success'>active</span>";
-    presetList += "<a href='/set?i=" + String(i) +
-                   "' class='stretched-link text-reset text-decoration-none'></a></li>";
+      presetList += " <span class='badge bg-success position-relative z-3'>active</span>";
+    presetList += "</a></li>";
   }
 
   String html = FPSTR(HTML_PAGE);
