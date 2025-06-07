@@ -2,6 +2,12 @@
 # Install and flash script for ESP32
 set -e
 
+# Ensure Python 3 is available
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Python 3 is required but was not found. Please install Python 3 and try again." >&2
+    exit 1
+fi
+
 # Ensure PlatformIO is installed
 if ! command -v pio >/dev/null 2>&1; then
     echo "Installing PlatformIO CLI..."
