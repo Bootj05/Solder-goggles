@@ -72,4 +72,5 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Build firmware
+pio lib -g install fastled/FastLED@3.9.20
 pio run
