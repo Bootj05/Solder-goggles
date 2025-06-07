@@ -27,7 +27,9 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Custom mDNS hostname
 
 ### Hardware
-The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.
+The previous and next buttons are wired as active-low. Pins 34--39 on the
+ESP32 can't use internal pull-ups, so if you connect a button to one of those
+pins (e.g. GPIO35) make sure an external pull-up resistor is present.
 
 ### WebSocket API
 The firmware also runs a WebSocket server on port `81`. Send plain text commands

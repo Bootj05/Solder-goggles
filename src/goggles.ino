@@ -536,8 +536,12 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
 void setup() {
   Serial.begin(115200);
   pinMode(cfg::BTN_PREV, INPUT_PULLUP);
-  // Buttons use internal pull-ups and are thus active-low
-  pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
+  // Buttons are active-low. Pins 34-39 do not support internal pull-ups,
+  // so fall back to plain INPUT when necessary.
+  if (cfg::BTN_NEXT >= 34)
+    pinMode(cfg::BTN_NEXT, INPUT);
+  else
+    pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
   FastLED.setBrightness(brightness);
 
