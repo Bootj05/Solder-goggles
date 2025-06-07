@@ -2,6 +2,18 @@
 # Install and flash script for ESP32
 set -e
 
+# Choose sed command (use gsed if available)
+SED=sed
+if command -v gsed >/dev/null 2>&1; then
+    SED=gsed
+fi
+if $SED --version >/dev/null 2>&1; then
+    SED_INPLACE=("$SED" -i)
+else
+    # macOS/BSD sed requires a suffix for -i
+    SED_INPLACE=("$SED" -i '')
+fi
+
 
 # Offer a Python virtual environment
 read -p "Use a Python virtual environment? [y/N] " use_venv
@@ -42,8 +54,8 @@ if [ ! -f include/secrets.h ]; then
         cp include/secrets_example.h include/secrets.h
         read -p "WiFi SSID: " wifi_ssid
         read -p "WiFi password: " wifi_pass
-        sed -i "s|#define WIFI_SSID .*|#define WIFI_SSID \"${wifi_ssid}\"|" include/secrets.h
-        sed -i "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${wifi_pass}\"|" include/secrets.h
+        "${SED_INPLACE[@]}" "s|#define WIFI_SSID .*|#define WIFI_SSID \"${wifi_ssid}\"|" include/secrets.h
+        "${SED_INPLACE[@]}" "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${wifi_pass}\"|" include/secrets.h
         echo "Created include/secrets.h"
     else
         echo "Please create include/secrets.h before proceeding." >&2
