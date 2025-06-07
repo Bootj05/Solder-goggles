@@ -19,6 +19,7 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 #include <Preferences.h>
+#include <BluetoothSerial.h>
 
 #include "secrets.h"  // NOLINT(build/include_subdir)
 #include "include/utils.h"
@@ -213,6 +214,7 @@ String storedHostname;
 
 WebServer server(80);
 WebSocketsServer ws(81);
+BluetoothSerial bt;
 
 void loadCredentials() {
   prefs.begin("wifi", true);
@@ -701,6 +703,97 @@ void handleAdd() {
   server.send(303);
 }
 
+void handleCommand(String msg) {
+  if (msg == "next") {
+    nextPreset();
+  } else if (msg == "prev") {
+    previousPreset();
+  } else if (msg.startsWith("set:")) {
+    String idxStr = msg.substring(4);
+    bool digitsOnly = idxStr.length() > 0;
+    for (size_t i = 0; i < idxStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(idxStr[i]);
+    }
+    if (digitsOnly) {
+      int idx = idxStr.toInt();
+      if (idx >= 0 && idx < presets.size()) {
+        currentPreset = idx;
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("bright:")) {
+    String valStr = msg.substring(7);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val >= 0 && val <= 255) {
+        brightness = val;
+        FastLED.setBrightness(brightness);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("color:")) {
+    String colorStr = msg.substring(6);
+    if (colorStr.length() == 7 && colorStr[0] == '#') {
+      colorStr = colorStr.substring(1);
+      bool hexOnly = colorStr.length() == 6;
+      for (size_t i = 0; i < colorStr.length() && hexOnly; ++i) {
+        hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
+      }
+      if (hexOnly) {
+        auto val = strtol(colorStr.c_str(), nullptr, 16);
+        presets[currentPreset].color =
+            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+        applyPreset();
+      }
+    }
+  } else if (msg.startsWith("speed:")) {
+    String valStr = msg.substring(6);
+    bool digitsOnly = valStr.length() > 0;
+    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
+      digitsOnly = isDigit(valStr[i]);
+    }
+    if (digitsOnly) {
+      int val = valStr.toInt();
+      if (val > 0)
+        animInterval = val;
+    }
+  } else if (msg.startsWith("leds:")) {
+    String data = msg.substring(5);
+    presets[currentPreset].type = PresetType::CUSTOM;
+    if (!presets[currentPreset].leds)
+      presets[currentPreset].leds = new CRGB[cfg::NUM_LEDS];
+    if (!presets[currentPreset].effects)
+      presets[currentPreset].effects = new uint8_t[cfg::NUM_LEDS];
+    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+      presets[currentPreset].leds[i] = CRGB::Black;
+      presets[currentPreset].effects[i] = 0;
+    }
+    int idx = 0;
+    while (idx < cfg::NUM_LEDS && data.length()) {
+      int sep = data.indexOf(',');
+      String tok = sep == -1 ? data : data.substring(0, sep);
+      if (tok.startsWith("#"))
+        tok.remove(0, 1);
+      uint32_t val;
+      if (parseHexColor(tok.c_str(), val)) {
+        presets[currentPreset].leds[idx] =
+            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+      }
+      if (sep == -1)
+        data = "";
+      else
+        data = data.substring(sep + 1);
+      ++idx;
+    }
+    saveCustomPresets();
+    applyPreset();
+  }
+}
+
 /**
  * Set active preset by index via query parameter 'i'
  */
@@ -806,95 +899,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
     return;
   msg = msg.substring(prefix.length());
 #endif
-  if (msg == "next") {
-    nextPreset();
-  } else if (msg == "prev") {
-    previousPreset();
-  } else if (msg.startsWith("set:")) {
-    String idxStr = msg.substring(4);
-    bool digitsOnly = idxStr.length() > 0;
-    for (size_t i = 0; i < idxStr.length() && digitsOnly; ++i) {
-      digitsOnly = isDigit(idxStr[i]);
-    }
-    // Validate the index to avoid falling back to preset 0 on bad input
-    if (digitsOnly) {
-      int idx = idxStr.toInt();
-      if (idx >= 0 && idx < presets.size()) {
-        currentPreset = idx;
-        applyPreset();
-      }
-    }
-  } else if (msg.startsWith("bright:")) {
-    String valStr = msg.substring(7);
-    bool digitsOnly = valStr.length() > 0;
-    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
-      digitsOnly = isDigit(valStr[i]);
-    }
-    if (digitsOnly) {
-      int val = valStr.toInt();
-      if (val >= 0 && val <= 255) {
-        brightness = val;
-        FastLED.setBrightness(brightness);
-        applyPreset();
-      }
-    }
-  } else if (msg.startsWith("color:")) {
-    String colorStr = msg.substring(6);
-    if (colorStr.length() == 7 && colorStr[0] == '#') {
-      colorStr = colorStr.substring(1);
-      bool hexOnly = colorStr.length() == 6;
-      for (size_t i = 0; i < colorStr.length() && hexOnly; ++i) {
-        hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
-      }
-      if (hexOnly) {
-        auto val = strtol(colorStr.c_str(), nullptr, 16);
-        presets[currentPreset].color =
-            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
-        applyPreset();
-      }
-    }
-  } else if (msg.startsWith("speed:")) {
-    String valStr = msg.substring(6);
-    bool digitsOnly = valStr.length() > 0;
-    for (size_t i = 0; i < valStr.length() && digitsOnly; ++i) {
-      digitsOnly = isDigit(valStr[i]);
-    }
-    if (digitsOnly) {
-      int val = valStr.toInt();
-      if (val > 0)
-        animInterval = val;
-    }
-  } else if (msg.startsWith("leds:")) {
-    String data = msg.substring(5);
-    presets[currentPreset].type = PresetType::CUSTOM;
-    if (!presets[currentPreset].leds)
-      presets[currentPreset].leds = new CRGB[cfg::NUM_LEDS];
-    if (!presets[currentPreset].effects)
-      presets[currentPreset].effects = new uint8_t[cfg::NUM_LEDS];
-    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
-      presets[currentPreset].leds[i] = CRGB::Black;
-      presets[currentPreset].effects[i] = 0;
-    }
-    int idx = 0;
-    while (idx < cfg::NUM_LEDS && data.length()) {
-      int sep = data.indexOf(',');
-      String tok = sep == -1 ? data : data.substring(0, sep);
-      if (tok.startsWith("#"))
-        tok.remove(0, 1);
-      uint32_t val;
-      if (parseHexColor(tok.c_str(), val)) {
-        presets[currentPreset].leds[idx] =
-            CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
-      }
-      if (sep == -1)
-        data = "";
-      else
-        data = data.substring(sep + 1);
-      ++idx;
-    }
-    saveCustomPresets();
-    applyPreset();
-  }
+  handleCommand(msg);
 }
 
 /**
@@ -902,6 +907,10 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
  */
 void setup() {
   Serial.begin(115200);
+  loadCredentials();
+  const char *btName =
+      storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
+  bt.begin(btName);
   pinMode(cfg::BTN_PREV, INPUT_PULLUP);
   // Buttons are active-low. Pins 34-39 do not support internal pull-ups,
   // so fall back to plain INPUT when necessary.
@@ -975,6 +984,12 @@ void loop() {
 
   server.handleClient();
   ws.loop();
+  if (bt.available()) {
+    String line = bt.readStringUntil('\n');
+    line.trim();
+    if (line.length())
+      handleCommand(line);
+  }
   ArduinoOTA.handle();
 
   if (millis() - lastAnim > animInterval) {
