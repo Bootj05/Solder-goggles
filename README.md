@@ -13,6 +13,9 @@ Create `include/secrets.h` with your WiFi credentials as `WIFI_SSID` and
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
 
+### Hardware
+The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.
+
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware:
 

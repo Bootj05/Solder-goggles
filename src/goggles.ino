@@ -209,7 +209,8 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
 void setup() {
   Serial.begin(115200);
   pinMode(cfg::BTN_PREV, INPUT_PULLUP);
-  pinMode(cfg::BTN_NEXT, INPUT);
+  // Buttons use internal pull-ups and are thus active-low
+  pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
 
   connectWiFi();
