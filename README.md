@@ -2,6 +2,12 @@
 
 Pair of specs with magnifier glass upgraded with 13 LEDs.
 
+## Prerequisites
+
+`python3` and `pip` must be installed before running `setup.sh` or
+`install.sh`. These scripts will install PlatformIO automatically. You
+can use a Python virtual environment if preferred.
+
 ## Firmware
 
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
