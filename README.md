@@ -92,6 +92,22 @@ Upload to the device with:
 pio run --target upload
 ```
 
+### OTA updates
+Once the firmware has been flashed at least once you can upload new
+versions over WiFi. The `esp32-ota` PlatformIO environment is configured
+for OTA using the default mDNS host `JohannesBril.local`.
+
+```bash
+pio run -e esp32-ota --target upload
+```
+
+If you changed the hostname or need to use an IP address pass it as the
+`--upload-port` value:
+
+```bash
+pio run -e esp32-ota --target upload --upload-port <ip_or_hostname>
+```
+
 Alternatively use `install.sh` to build the project, optionally export the
 compiled binary and flash a connected ESP32 automatically. If
 `include/secrets.h` is missing it will prompt for your WiFi details just like
