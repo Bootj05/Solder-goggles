@@ -16,6 +16,7 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Web interface for switching LED presets
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
+- Runtime WiFi configuration at `/wifi`
 
 ### Hardware
 The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.

@@ -11,6 +11,7 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #include <vector>
 #include <ctype.h>
 
@@ -71,17 +72,40 @@ int currentPreset = 0;
 uint8_t rainbowHue = 0;
 unsigned long lastAnim = 0;
 
+Preferences prefs;
+String storedSSID;
+String storedPassword;
+
 WebServer server(80);
 WebSocketsServer ws(81);
 
+void loadCredentials() {
+  prefs.begin("wifi", true);
+  storedSSID = prefs.getString("ssid", "");
+  storedPassword = prefs.getString("pass", "");
+  prefs.end();
+}
+
+void saveCredentials(const String &ssid, const String &password) {
+  prefs.begin("wifi", false);
+  prefs.putString("ssid", ssid);
+  prefs.putString("pass", password);
+  prefs.end();
+  storedSSID = ssid;
+  storedPassword = password;
+}
+
 /**
- * Connect to WiFi using credentials from secrets.h
+ * Connect to WiFi using stored credentials if available
  */
 
 void connectWiFi() {
+  loadCredentials();
+  const char *ssid = storedSSID.length() ? storedSSID.c_str() : cfg::SSID;
+  const char *pass = storedPassword.length() ? storedPassword.c_str() : cfg::PASSWORD;
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(cfg::SSID, cfg::PASSWORD);
+  WiFi.begin(ssid, pass);
   unsigned long start = millis();
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
@@ -194,6 +218,7 @@ const char HTML_FOOTER[] PROGMEM = R"html(
     </div>
     <button class='btn btn-primary'>Add</button>
   </form>
+  <a class='btn btn-link mt-2' href='/wifi'>WiFi setup</a>
 </body>
 </html>
 )html";
@@ -253,6 +278,42 @@ void handleAdd() {
 }
 
 /**
+ * Display form for WiFi credentials
+ */
+void handleWifiForm() {
+  String html =
+      "<!DOCTYPE html><html><head><title>WiFi Setup</title>"
+      "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css'></head>"
+      "<body class='container mt-4'>"
+      "<h1>WiFi Credentials</h1>"
+      "<form method='POST' action='/wifi'>"
+      "<div class='form-group'><label for='ssid'>SSID</label>"
+      "<input class='form-control' id='ssid' name='ssid' value='" +
+      storedSSID + "'></div>"
+      "<div class='form-group'><label for='password'>Password</label>"
+      "<input class='form-control' id='password' name='password' type='password' value='" +
+      storedPassword + "'></div>"
+      "<button class='btn btn-primary'>Save</button></form>"
+      "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+/**
+ * Save WiFi credentials from form
+ */
+void handleWifiSave() {
+  if (!server.hasArg("ssid") || !server.hasArg("password")) {
+    server.send(400, "text/html",
+                "<html><body><p>Missing SSID or password.</p><a href='/wifi'>Back</a></body></html>");
+    return;
+  }
+  saveCredentials(server.arg("ssid"), server.arg("password"));
+  connectWiFi();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/**
  * Handle incoming WebSocket messages
  */
 void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
@@ -303,6 +364,8 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
+  server.on("/wifi", HTTP_GET, handleWifiForm);
+  server.on("/wifi", HTTP_POST, handleWifiSave);
   server.begin();
 
   ws.begin();
