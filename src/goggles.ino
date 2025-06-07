@@ -65,9 +65,98 @@ struct Preset {
 #endif
   String name;
   PresetType type;
-  CRGB color; // Only for STATIC
-  CRGB leds[cfg::NUM_LEDS]; // Only for CUSTOM
-  uint8_t effects[cfg::NUM_LEDS]; // Optional per-LED effect
+  CRGB color;               // Only for STATIC
+  CRGB *leds;               // Only for CUSTOM
+  uint8_t *effects;         // Optional per-LED effect
+
+  Preset()
+      : name(),
+        type(PresetType::STATIC),
+        color(CRGB::Black),
+        leds(nullptr),
+        effects(nullptr) {}
+
+  Preset(const String &n, PresetType t, CRGB c)
+      : name(n),
+        type(t),
+        color(c),
+        leds(nullptr),
+        effects(nullptr) {
+    if (t == PresetType::CUSTOM) {
+      leds = new CRGB[cfg::NUM_LEDS];
+      effects = new uint8_t[cfg::NUM_LEDS];
+      for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+        leds[i] = CRGB::Black;
+        effects[i] = 0;
+      }
+    }
+  }
+
+  Preset(const Preset &other)
+      : name(other.name),
+        type(other.type),
+        color(other.color),
+        leds(nullptr),
+        effects(nullptr) {
+    if (other.type == PresetType::CUSTOM && other.leds) {
+      leds = new CRGB[cfg::NUM_LEDS];
+      effects = new uint8_t[cfg::NUM_LEDS];
+      for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+        leds[i] = other.leds[i];
+        effects[i] = other.effects ? other.effects[i] : 0;
+      }
+    }
+  }
+
+  Preset &operator=(const Preset &other) {
+    if (this != &other) {
+      delete[] leds;
+      delete[] effects;
+      leds = effects = nullptr;
+      name = other.name;
+      type = other.type;
+      color = other.color;
+      if (other.type == PresetType::CUSTOM && other.leds) {
+        leds = new CRGB[cfg::NUM_LEDS];
+        effects = new uint8_t[cfg::NUM_LEDS];
+        for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+          leds[i] = other.leds[i];
+          effects[i] = other.effects ? other.effects[i] : 0;
+        }
+      }
+    }
+    return *this;
+  }
+
+  Preset(Preset &&other) noexcept
+      : name(std::move(other.name)),
+        type(other.type),
+        color(other.color),
+        leds(other.leds),
+        effects(other.effects) {
+    other.leds = nullptr;
+    other.effects = nullptr;
+  }
+
+  Preset &operator=(Preset &&other) noexcept {
+    if (this != &other) {
+      delete[] leds;
+      delete[] effects;
+      name = std::move(other.name);
+      type = other.type;
+      color = other.color;
+      leds = other.leds;
+      effects = other.effects;
+      other.leds = nullptr;
+      other.effects = nullptr;
+    }
+    return *this;
+  }
+
+  ~Preset() {
+    delete[] leds;
+    delete[] effects;
+  }
 };
 
 struct PresetData {
@@ -229,6 +318,8 @@ void loadCustomPresets() {
     p.type = static_cast<PresetType>(type);
     p.color = CRGB::Black;
     if (p.type == PresetType::CUSTOM) {
+      p.leds = new CRGB[cfg::NUM_LEDS];
+      p.effects = new uint8_t[cfg::NUM_LEDS];
       for (int i = 0; i < cfg::NUM_LEDS; ++i) {
         p.leds[i] = CRGB::Black;
         p.effects[i] = 0;
@@ -276,8 +367,8 @@ void saveCustomPresets() {
           "," + String(static_cast<int>(presets[i].type)) + ",";
       for (int j = 0; j < cfg::NUM_LEDS; ++j) {
         char buf[8];
-        sprintf(buf, "%02x%02x%02x", presets[i].leds[j].r,
-                presets[i].leds[j].g, presets[i].leds[j].b);
+        CRGB c = presets[i].leds ? presets[i].leds[j] : CRGB::Black;
+        sprintf(buf, "%02x%02x%02x", c.r, c.g, c.b);
         line += buf;
         if (j + 1 < cfg::NUM_LEDS)
           line += ';';
@@ -436,8 +527,12 @@ void applyPreset() {
   } break;
 
   case PresetType::CUSTOM: {
-    for (int i = 0; i < cfg::NUM_LEDS; ++i) {
-      leds[i] = presets[currentPreset].leds[i];
+    if (presets[currentPreset].leds) {
+      for (int i = 0; i < cfg::NUM_LEDS; ++i) {
+        leds[i] = presets[currentPreset].leds[i];
+      }
+    } else {
+      fill_solid(leds, cfg::NUM_LEDS, CRGB::Black);
     }
   } break;
   }
@@ -759,6 +854,10 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   } else if (msg.startsWith("leds:")) {
     String data = msg.substring(5);
     presets[currentPreset].type = PresetType::CUSTOM;
+    if (!presets[currentPreset].leds)
+      presets[currentPreset].leds = new CRGB[cfg::NUM_LEDS];
+    if (!presets[currentPreset].effects)
+      presets[currentPreset].effects = new uint8_t[cfg::NUM_LEDS];
     for (int i = 0; i < cfg::NUM_LEDS; ++i) {
       presets[currentPreset].leds[i] = CRGB::Black;
       presets[currentPreset].effects[i] = 0;
