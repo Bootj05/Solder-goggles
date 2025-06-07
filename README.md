@@ -58,6 +58,8 @@ wscat -c ws://<device_ip>:81/ -x set:2
 ```
 
 ### Building
+Before building, copy `include/secrets_example.h` to `include/secrets.h` and set
+your WiFi credentials.
 Run `setup.sh` once to install PlatformIO and build the firmware:
 
 ```bash
@@ -87,4 +89,12 @@ While running, check the serial output at `115200` baud:
 
 ```bash
 pio device monitor
+```
+
+### Linting
+Arduino sources are checked with [cpplint](https://github.com/cpplint/cpplint).
+Run the linter after making changes:
+
+```bash
+cpplint --recursive src include test
 ```

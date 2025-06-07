@@ -5,7 +5,12 @@ set -e
 # Ensure PlatformIO is installed
 if ! command -v pio >/dev/null 2>&1; then
     echo "Installing PlatformIO CLI..."
-    python3 -m pip install --user -U platformio
+    if ! python3 -m pip install --user -U platformio; then
+        echo "Failed to install PlatformIO." >&2
+        echo "Please check your network connection or install it manually:" >&2
+        echo "https://docs.platformio.org/en/latest/core/installation.html" >&2
+        exit 1
+    fi
     export PATH="$PATH:$(python3 -m site --user-base)/bin"
 fi
 
