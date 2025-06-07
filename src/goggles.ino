@@ -170,7 +170,7 @@ void saveCustomPresets() {
   File f = SPIFFS.open("/presets.txt", "w");
   if (!f)
     return;
-  for (size_t i = DEFAULT_PRESET_COUNT; i < presets.size(); ++i) {
+  for (size_t i = DEFAULT_PRESET_COUNT; i + 1 < presets.size(); ++i) {
     char buf[64];
     sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
             static_cast<int>(presets[i].type), presets[i].color.r,
@@ -337,9 +337,11 @@ void handleAdd() {
     return;
   }
 
-  presets.push_back({name, PresetType::STATIC,
-                     CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF, colorVal & 0xFF)});
-  currentPreset = presets.size() - 1;
+  presets.insert(presets.end() - 1,
+                 {name, PresetType::STATIC,
+                  CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF,
+                       colorVal & 0xFF)});
+  currentPreset = presets.size() - 2;
   saveCustomPresets();
   applyPreset();
 
@@ -471,6 +473,8 @@ void setup() {
   SPIFFS.begin(true);
   loadDefaultPresets();
   loadCustomPresets();
+  presets.push_back({"Off", PresetType::STATIC, CRGB::Black});
+  currentPreset = presets.size() - 1;
 
   connectWiFi();
   if (MDNS.begin("JohannesBril")) {
