@@ -4,6 +4,7 @@
  */
 #include "secrets.h"
 #include "utils.h"
+#include <pgmspace.h>
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
@@ -15,6 +16,10 @@
 #include <Preferences.h>
 #include <vector>
 #include <ctype.h>
+
+#ifndef KEEP_NAMES_IN_FLASH
+#define KEEP_NAMES_IN_FLASH 0
+#endif
 
 namespace cfg {
 constexpr uint8_t LED_PIN = 2;
@@ -55,6 +60,9 @@ enum class PresetType {
   CUSTOM
 };
 struct Preset {
+#if KEEP_NAMES_IN_FLASH
+  const __FlashStringHelper *flashName = nullptr;
+#endif
   String name;
   PresetType type;
   CRGB color; // Only for STATIC
@@ -63,21 +71,26 @@ struct Preset {
 };
 
 struct PresetData {
-  const char *name;
+  uint8_t nameIdx;
   PresetType type;
   CRGB color;
 };
 
+constexpr const __FlashStringHelper *defaultPresetNames[] PROGMEM = {
+    F("White"),     F("Rainbow"),   F("Police NL"), F("Police USA"),
+    F("Strobe"),    F("Lavalamp"),  F("Fire"),      F("Candle"),
+    F("Party")};
+
 constexpr PresetData defaultPresets[] PROGMEM = {
-    {"White", PresetType::STATIC, CRGB::White},
-    {"Rainbow", PresetType::RAINBOW, CRGB::Black},
-    {"Police NL", PresetType::POLICE_NL, CRGB::Black},
-    {"Police USA", PresetType::POLICE_USA, CRGB::Black},
-    {"Strobe", PresetType::STROBE, CRGB::Black},
-    {"Lavalamp", PresetType::LAVALAMP, CRGB::Black},
-    {"Fire", PresetType::FIRE, CRGB::Black},
-    {"Candle", PresetType::CANDLE, CRGB::Black},
-    {"Party", PresetType::PARTY, CRGB::Black},
+    {0, PresetType::STATIC, CRGB::White},
+    {1, PresetType::RAINBOW, CRGB::Black},
+    {2, PresetType::POLICE_NL, CRGB::Black},
+    {3, PresetType::POLICE_USA, CRGB::Black},
+    {4, PresetType::STROBE, CRGB::Black},
+    {5, PresetType::LAVALAMP, CRGB::Black},
+    {6, PresetType::FIRE, CRGB::Black},
+    {7, PresetType::CANDLE, CRGB::Black},
+    {8, PresetType::PARTY, CRGB::Black},
 };
 std::vector<Preset> presets;
 const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
@@ -175,7 +188,20 @@ void loadDefaultPresets() {
   for (size_t i = 0; i < DEFAULT_PRESET_COUNT; ++i) {
     PresetData data;
     memcpy_P(&data, &defaultPresets[i], sizeof(PresetData));
-    presets.push_back({String(data.name), data.type, data.color});
+    Preset p;
+#if KEEP_NAMES_IN_FLASH
+    p.flashName = reinterpret_cast<const __FlashStringHelper *>(
+        pgm_read_ptr(&defaultPresetNames[data.nameIdx]));
+#else
+    char buf[32];
+    strcpy_P(buf,
+             reinterpret_cast<const char *>(
+                 pgm_read_ptr(&defaultPresetNames[data.nameIdx])));
+    p.name = String(buf);
+#endif
+    p.type = data.type;
+    p.color = data.color;
+    presets.push_back(p);
   }
 }
 
@@ -196,6 +222,9 @@ void loadCustomPresets() {
     int type = line.substring(first + 1, second).toInt();
     String colStr = line.substring(second + 1);
     Preset p;
+#if KEEP_NAMES_IN_FLASH
+    p.flashName = nullptr;
+#endif
     p.name = name;
     p.type = static_cast<PresetType>(type);
     p.color = CRGB::Black;
@@ -236,8 +265,15 @@ void saveCustomPresets() {
     return;
   for (size_t i = DEFAULT_PRESET_COUNT; i + 1 < presets.size(); ++i) {
     if (presets[i].type == PresetType::CUSTOM) {
-      String line = presets[i].name + "," +
-                    String(static_cast<int>(presets[i].type)) + ",";
+      String line =
+#if KEEP_NAMES_IN_FLASH
+          (presets[i].flashName
+               ? String(FPSTR(presets[i].flashName))
+               : presets[i].name) +
+#else
+          presets[i].name +
+#endif
+          "," + String(static_cast<int>(presets[i].type)) + ",";
       for (int j = 0; j < cfg::NUM_LEDS; ++j) {
         char buf[8];
         sprintf(buf, "%02x%02x%02x", presets[i].leds[j].r,
@@ -250,7 +286,15 @@ void saveCustomPresets() {
       f.print(line);
     } else {
       char buf[64];
-      sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
+      String n =
+#if KEEP_NAMES_IN_FLASH
+          (presets[i].flashName
+               ? String(FPSTR(presets[i].flashName))
+               : presets[i].name);
+#else
+          presets[i].name;
+#endif
+      sprintf(buf, "%s,%d,%02x%02x%02x\n", n.c_str(),
               static_cast<int>(presets[i].type), presets[i].color.r,
               presets[i].color.g, presets[i].color.b);
       f.print(buf);
@@ -480,7 +524,14 @@ void handleRoot() {
     presetList += "<li class='list-group-item position-relative'>";
     presetList += "<a href='/set?i=" + String(i) +
                    "' class='d-flex justify-content-between align-items-center text-reset text-decoration-none stretched-link'>";
+#if KEEP_NAMES_IN_FLASH
+    if (presets[i].flashName)
+      presetList += FPSTR(presets[i].flashName);
+    else
+      presetList += presets[i].name;
+#else
     presetList += presets[i].name;
+#endif
     if (i == currentPreset)
       presetList += " <span class='badge bg-success position-relative z-3'>active</span>";
     presetList += "</a></li>";
@@ -525,10 +576,17 @@ void handleAdd() {
     return;
   }
 
-  presets.insert(presets.end() - 1,
-                 {name, PresetType::STATIC,
-                  CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF,
-                       colorVal & 0xFF)});
+  {
+    Preset p;
+#if KEEP_NAMES_IN_FLASH
+    p.flashName = nullptr;
+#endif
+    p.name = name;
+    p.type = PresetType::STATIC;
+    p.color = CRGB((colorVal >> 16) & 0xFF, (colorVal >> 8) & 0xFF,
+                   colorVal & 0xFF);
+    presets.insert(presets.end() - 1, p);
+  }
   currentPreset = presets.size() - 2;
   saveCustomPresets();
   applyPreset();
@@ -745,7 +803,17 @@ void setup() {
   SPIFFS.begin(true);
   loadDefaultPresets();
   loadCustomPresets();
-  presets.push_back({"Off", PresetType::STATIC, CRGB::Black});
+  {
+    Preset p;
+#if KEEP_NAMES_IN_FLASH
+    p.flashName = reinterpret_cast<const __FlashStringHelper *>(F("Off"));
+#else
+    p.name = "Off";
+#endif
+    p.type = PresetType::STATIC;
+    p.color = CRGB::Black;
+    presets.push_back(p);
+  }
   currentPreset = presets.size() - 1;
 
   connectWiFi();
