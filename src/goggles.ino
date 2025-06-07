@@ -283,25 +283,40 @@ const char HTML_PAGE[] PROGMEM = R"html(
 <html>
 <head>
   <title>Solder Goggles</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #222, #000);
+      color: #f8f9fa;
+    }
+    .list-group-item {
+      background-color: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.15);
+    }
+  </style>
 </head>
-<body class="container mt-4">
-  <h1 class="mb-3">LED Presets</h1>
+<body class="container py-4">
+  <h1 class="mb-4 text-center">Solder Goggles</h1>
+  <div class='mb-3 text-center'>
+    <a class='btn btn-secondary me-2' href='/prev'>Prev</a>
+    <a class='btn btn-secondary' href='/next'>Next</a>
+  </div>
   <ul class="list-group">
   %PRESETS%
   </ul>
-  <form method='POST' action='/add' class='mt-4'>
-    <div class='form-group'>
-      <label for='name'>Name</label>
-      <input class='form-control' id='name' name='name'>
+  <form method='POST' action='/add' class='row row-cols-lg-auto g-3 align-items-center mt-4'>
+    <div class='col-12'>
+      <input class='form-control' id='name' name='name' placeholder='Name'>
     </div>
-    <div class='form-group'>
-      <label for='color'>Color (hex like #ff00ff)</label>
-      <input class='form-control' id='color' name='color'>
+    <div class='col-12'>
+      <input class='form-control' id='color' name='color' placeholder='#RRGGBB'>
     </div>
-    <button class='btn btn-primary'>Add</button>
+    <div class='col-12'>
+      <button class='btn btn-primary'>Add</button>
+    </div>
   </form>
-  <a class='btn btn-link mt-2' href='/wifi'>WiFi setup</a>
+  <a class='btn btn-link mt-3' href='/wifi'>WiFi setup</a>
 </body>
 </html>
 )html";
@@ -309,9 +324,12 @@ const char HTML_PAGE[] PROGMEM = R"html(
 void handleRoot() {
   String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    presetList += "<li class='list-group-item'>" + presets[i].name;
+    presetList += "<li class='list-group-item d-flex justify-content-between align-items-center'>";
+    presetList += presets[i].name;
     if (i == currentPreset)
-      presetList += " <span class='badge badge-success'>active</span>";
+      presetList += " <span class='badge bg-success'>active</span>";
+    else
+      presetList += " <a class='btn btn-sm btn-outline-light' href='/set?i=" + String(i) + "'>Select</a>";
     presetList += "</li>";
   }
 
@@ -366,19 +384,53 @@ void handleAdd() {
 }
 
 /**
+ * Set active preset by index via query parameter 'i'
+ */
+void handleSet() {
+  if (!server.hasArg("i")) {
+    server.send(400, "text/plain", "Missing index");
+    return;
+  }
+  int idx = server.arg("i").toInt();
+  if (idx < 0 || idx >= presets.size()) {
+    server.send(400, "text/plain", "Invalid index");
+    return;
+  }
+  currentPreset = idx;
+  applyPreset();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/** Navigate to next preset */
+void handleNext() {
+  nextPreset();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/** Navigate to previous preset */
+void handlePrev() {
+  previousPreset();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+/**
  * Display form for WiFi credentials
  */
 void handleWifiForm() {
   String html =
       "<!DOCTYPE html><html><head><title>WiFi Setup</title>"
-      "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css'></head>"
-      "<body class='container mt-4'>"
-      "<h1>WiFi Credentials</h1>"
-      "<form method='POST' action='/wifi'>"
-      "<div class='form-group'><label for='ssid'>SSID</label>"
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+      "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'></head>"
+      "<body class='container py-4'>"
+      "<h1 class='mb-3'>WiFi Credentials</h1>"
+      "<form method='POST' action='/wifi' class='row g-3'>"
+      "<div class='col-12'><label class='form-label' for='ssid'>SSID</label>"
       "<input class='form-control' id='ssid' name='ssid' value='" +
       storedSSID + "'></div>"
-      "<div class='form-group'><label for='password'>Password</label>"
+      "<div class='col-12'><label class='form-label' for='password'>Password</label>"
       "<input class='form-control' id='password' name='password' type='password' value='" +
       storedPassword + "'></div>"
       "<div class='form-group'><label for='host'>Device name</label>"
@@ -499,6 +551,9 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
+  server.on("/set", HTTP_GET, handleSet);
+  server.on("/next", HTTP_GET, handleNext);
+  server.on("/prev", HTTP_GET, handlePrev);
   server.on("/wifi", HTTP_GET, handleWifiForm);
   server.on("/wifi", HTTP_POST, handleWifiSave);
   server.begin();
