@@ -2,6 +2,9 @@
 # Install and flash script for ESP32
 set -e
 
+# Always pause before exiting so the terminal stays open on failure or success
+trap 'echo; read -n 1 -r -p "Press any key to exit..."' EXIT
+
 # Determine sed command and in-place arguments
 SED="sed"
 if command -v gsed >/dev/null 2>&1; then
