@@ -85,7 +85,7 @@ if [ ! -f include/secrets.h ]; then
     if [[ $create_secrets =~ ^[Yy]$ ]]; then
         cp include/secrets_example.h include/secrets.h
         read -p "WiFi SSID: " wifi_ssid
-        read -p "WiFi password: " wifi_pass
+        read -s -p "WiFi password: " wifi_pass; echo
         ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
         pass_escaped=$(escape_sed_replacement "$wifi_pass")
         sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h
