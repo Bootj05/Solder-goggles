@@ -131,17 +131,44 @@ void previousPreset() {
 /**
  * Serve the main HTML interface listing presets
  */
+const char HTML_HEADER[] PROGMEM = R"html(
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Solder Goggles</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+</head>
+<body class="container mt-4">
+  <h1 class="mb-3">LED Presets</h1>
+  <ul class="list-group">
+)html";
+
+const char HTML_FOOTER[] PROGMEM = R"html(
+  </ul>
+  <form method='POST' action='/add' class='mt-4'>
+    <div class='form-group'>
+      <label for='name'>Name</label>
+      <input class='form-control' id='name' name='name'>
+    </div>
+    <div class='form-group'>
+      <label for='color'>Color (hex like #ff00ff)</label>
+      <input class='form-control' id='color' name='color'>
+    </div>
+    <button class='btn btn-primary'>Add</button>
+  </form>
+</body>
+</html>
+)html";
+
 void handleRoot() {
-  String html = "<html><body><h1>Presets:</h1><ul>";
+  String html = FPSTR(HTML_HEADER);
   for (size_t i = 0; i < presets.size(); ++i) {
-    html += "<li>" + presets[i].name;
+    html += "<li class='list-group-item'>" + presets[i].name;
     if (i == currentPreset)
-      html += " <b>(active)</b>";
+      html += " <span class='badge badge-success'>active</span>";
     html += "</li>";
   }
-  html += "</ul><form method='POST' action='/add'>Name: <input name='name'> "
-          "Color (hex like #ff00ff): <input name='color'> "
-          "<button>Add</button></form></body></html>";
+  html += FPSTR(HTML_FOOTER);
   server.send(200, "text/html", html);
 }
 
