@@ -7,11 +7,16 @@ Pair of specs with magnifier glass upgraded with 13 LEDs.
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
 Copy `include/secrets_example.h` to `include/secrets.h` and add your WiFi
 credentials as `WIFI_SSID` and `WIFI_PASSWORD`.
+To protect the web interface and WebSocket API you can set `USE_AUTH` to `1`
+and choose an `AUTH_TOKEN` in `secrets.h`. When enabled, the `/add` endpoint
+expects a `token` parameter and WebSocket commands must be prefixed with
+`<token>:`.
 
 ### Features
 - Web interface for switching LED presets
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
+- Runtime WiFi configuration at `/wifi`
 
 ### Hardware
 The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.
@@ -25,6 +30,8 @@ wscat -c ws://<device_ip>:81/ -x next
 # set brightness to half
 wscat -c ws://<device_ip>:81/ -x bright:128
 ```
+# If authentication is enabled prepend the token to each command,
+# e.g. `wscat -c ws://<device_ip>:81/ -x <token>:next`.
 
 Available commands:
 
@@ -34,6 +41,21 @@ Available commands:
 * `bright:<0-255>` &mdash; set global LED brightness.
 * `color:#RRGGBB` &mdash; change the color of the active preset.
 * `speed:<ms>` &mdash; change animation update interval in milliseconds.
+
+### WebSocket Commands
+
+Below are example messages for each command when using [`wscat`](https://github.com/websockets/wscat):
+
+```bash
+# Advance to the next preset
+wscat -c ws://<device_ip>:81/ -x next
+
+# Go back to the previous preset
+wscat -c ws://<device_ip>:81/ -x prev
+
+# Explicitly select preset number 2
+wscat -c ws://<device_ip>:81/ -x set:2
+```
 
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware:
