@@ -16,6 +16,7 @@ Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
 You can copy `include/secrets_example.h` to `include/secrets.h` and add your
 WiFi credentials manually, or simply run one of the helper scripts which will
 prompt for the SSID and password if the file is missing.
+Set `BLUETOOTH_NAME` in `secrets.h` to change the Bluetooth device name.
 To protect the web interface and WebSocket API you can set `USE_AUTH` to `1`
 and choose an `AUTH_TOKEN` in `secrets.h`. When enabled, the `/add` endpoint
 expects a `token` parameter and WebSocket commands must be prefixed with
@@ -25,6 +26,7 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Web interface for switching LED presets
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
+- Bluetooth serial control using the same commands
 - Runtime WiFi configuration at `/wifi` (SSID, password and device name)
 - Custom mDNS hostname
 - Per-LED custom colors stored as a new `CUSTOM` preset
@@ -71,6 +73,11 @@ wscat -c ws://<device_ip>:81/ -x prev
 # Explicitly select preset number 2
 wscat -c ws://<device_ip>:81/ -x set:2
 ```
+
+### Bluetooth Commands
+
+Pair with the device using the name set by `BLUETOOTH_NAME`. Open a serial
+console at `115200` baud and send the same commands as above, one per line.
 
 ### Building
 Run `setup.sh` once to install PlatformIO and build the firmware. If

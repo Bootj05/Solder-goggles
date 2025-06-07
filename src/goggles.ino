@@ -12,6 +12,7 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
+#include <BluetoothSerial.h>
 #include <SPIFFS.h>
 #include <Preferences.h>
 #include <vector>
@@ -28,6 +29,7 @@ constexpr uint8_t BTN_PREV = 0;
 constexpr uint8_t BTN_NEXT = 35;
 const char *SSID = WIFI_SSID;
 const char *PASSWORD = WIFI_PASSWORD;
+const char *BT_NAME = BLUETOOTH_NAME;
 #ifdef USE_AUTH
 const char *TOKEN = AUTH_TOKEN;
 #endif
@@ -206,6 +208,8 @@ String storedHostname;
 
 WebServer server(80);
 WebSocketsServer ws(81);
+BluetoothSerial SerialBT;
+String btBuffer;
 
 void loadCredentials() {
   prefs.begin("wifi", true);
@@ -776,17 +780,13 @@ void handleWifiSave() {
   }
   saveCredentials(server.arg("ssid"), server.arg("password"), server.arg("host"));
   connectWiFi();
+  SerialBT.begin(storedHostname.length() ? storedHostname.c_str()
+                                        : cfg::BT_NAME);
   server.sendHeader("Location", "/");
   server.send(303);
 }
 
-/**
- * Handle incoming WebSocket messages
- */
-void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
-  if (type != WStype_TEXT)
-    return;
-  String msg = String((char *)payload);
+void handleCommand(String msg) {
 #if USE_AUTH
   String prefix = String(cfg::TOKEN) + ":";
   if (!msg.startsWith(prefix))
@@ -803,7 +803,6 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
     for (size_t i = 0; i < idxStr.length() && digitsOnly; ++i) {
       digitsOnly = isDigit(idxStr[i]);
     }
-    // Validate the index to avoid falling back to preset 0 on bad input
     if (digitsOnly) {
       int idx = idxStr.toInt();
       if (idx >= 0 && idx < presets.size()) {
@@ -885,6 +884,16 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
 }
 
 /**
+ * Handle incoming WebSocket messages
+ */
+void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
+  if (type != WStype_TEXT)
+    return;
+  String msg = String((char *)payload);
+  handleCommand(msg);
+}
+
+/**
  * Initialize hardware and network services
  */
 void setup() {
@@ -916,6 +925,8 @@ void setup() {
   currentPreset = presets.size() - 1;
 
   connectWiFi();
+  SerialBT.begin(storedHostname.length() ? storedHostname.c_str()
+                                        : cfg::BT_NAME);
 
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
@@ -962,6 +973,19 @@ void loop() {
 
   server.handleClient();
   ws.loop();
+  while (SerialBT.available()) {
+    char c = SerialBT.read();
+    if (c == '\r')
+      continue;
+    if (c == '\n') {
+      btBuffer.trim();
+      if (btBuffer.length())
+        handleCommand(btBuffer);
+      btBuffer = "";
+    } else {
+      btBuffer += c;
+    }
+  }
   ArduinoOTA.handle();
 
   if (millis() - lastAnim > animInterval) {
