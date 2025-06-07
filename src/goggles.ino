@@ -2,9 +2,14 @@
  * Firmware for LED goggles
  * Provides WiFi control and OTA updates
  */
-#include "secrets.h"
-#include "utils.h"
+// Copyright 2025 Bootj05
+#include <ctype.h>
 #include <pgmspace.h>
+#include <cstdint>
+#include <cstdio>
+#include <utility>
+#include <vector>
+
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
@@ -14,8 +19,9 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 #include <Preferences.h>
-#include <vector>
-#include <ctype.h>
+
+#include "secrets.h"  // NOLINT(build/include_subdir)
+#include "include/utils.h"
 
 #ifndef KEEP_NAMES_IN_FLASH
 #define KEEP_NAMES_IN_FLASH 0
@@ -31,7 +37,7 @@ const char *PASSWORD = WIFI_PASSWORD;
 #ifdef USE_AUTH
 const char *TOKEN = AUTH_TOKEN;
 #endif
-} // namespace cfg
+}  // namespace cfg
 
 /**
  * Types of LED animations.
@@ -182,7 +188,8 @@ constexpr PresetData defaultPresets[] PROGMEM = {
     {8, PresetType::PARTY, CRGB::Black},
 };
 std::vector<Preset> presets;
-const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
+const size_t DEFAULT_PRESET_COUNT =
+    sizeof(defaultPresets) / sizeof(defaultPresets[0]);
 
 constexpr char DEFAULT_HOST[] = "JohannesBril";
 
@@ -191,13 +198,13 @@ CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
 uint8_t rainbowHue = 0;
 
-unsigned long lastAnim = 0;
+uint32_t lastAnim = 0;
 uint8_t brightness = 255;
-unsigned long animInterval = 50;
+uint32_t animInterval = 50;
 
 bool wifiConnecting = false;
-unsigned long wifiConnectStart = 0;
-unsigned long wifiLastPrint = 0;
+uint32_t wifiConnectStart = 0;
+uint32_t wifiLastPrint = 0;
 
 Preferences prefs;
 String storedSSID;
@@ -233,9 +240,12 @@ void saveCredentials(const String &ssid, const String &password,
 
 void connectWiFi() {
   loadCredentials();
-  const char *ssid = storedSSID.length() ? storedSSID.c_str() : cfg::SSID;
-  const char *pass = storedPassword.length() ? storedPassword.c_str() : cfg::PASSWORD;
-  const char *host = storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
+  const char *ssid =
+      storedSSID.length() ? storedSSID.c_str() : cfg::SSID;
+  const char *pass =
+      storedPassword.length() ? storedPassword.c_str() : cfg::PASSWORD;
+  const char *host =
+      storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
@@ -248,7 +258,8 @@ void connectWiFi() {
 void handleWiFi() {
   if (!wifiConnecting)
     return;
-  const char *host = storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
+  const char *host =
+      storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   if (WiFi.status() == WL_CONNECTED) {
     wifiConnecting = false;
     Serial.println(" connected!");
@@ -368,7 +379,7 @@ void saveCustomPresets() {
       for (int j = 0; j < cfg::NUM_LEDS; ++j) {
         char buf[8];
         CRGB c = presets[i].leds ? presets[i].leds[j] : CRGB::Black;
-        sprintf(buf, "%02x%02x%02x", c.r, c.g, c.b);
+        snprintf(buf, sizeof(buf), "%02x%02x%02x", c.r, c.g, c.b);
         line += buf;
         if (j + 1 < cfg::NUM_LEDS)
           line += ';';
@@ -385,9 +396,9 @@ void saveCustomPresets() {
 #else
           presets[i].name;
 #endif
-      sprintf(buf, "%s,%d,%02x%02x%02x\n", n.c_str(),
-              static_cast<int>(presets[i].type), presets[i].color.r,
-              presets[i].color.g, presets[i].color.b);
+      snprintf(buf, sizeof(buf), "%s,%d,%02x%02x%02x\n", n.c_str(),
+               static_cast<int>(presets[i].type), presets[i].color.r,
+               presets[i].color.g, presets[i].color.b);
       f.print(buf);
     }
   }
@@ -617,8 +628,8 @@ void handleRoot() {
   presetList.reserve(presets.size() * 80);
   for (size_t i = 0; i < presets.size(); ++i) {
     presetList += "<li class='list-group-item position-relative'>";
-    presetList += "<a href='/set?i=" + String(i) +
-                   "' class='d-flex justify-content-between align-items-center text-reset text-decoration-none stretched-link'>";
+      presetList += "<a href='/set?i=" + String(i) +
+                     "' class='d-flex justify-content-between align-items-center text-reset text-decoration-none stretched-link'>";  // NOLINT
 #if KEEP_NAMES_IN_FLASH
     if (presets[i].flashName)
       presetList += FPSTR(presets[i].flashName);
@@ -627,8 +638,8 @@ void handleRoot() {
 #else
     presetList += presets[i].name;
 #endif
-    if (i == currentPreset)
-      presetList += " <span class='badge bg-success position-relative z-3'>active</span>";
+      if (i == currentPreset)
+        presetList += " <span class='badge bg-success position-relative z-3'>active</span>";  // NOLINT
     presetList += "</a></li>";
   }
 
@@ -645,13 +656,13 @@ void handleAdd() {
 #if USE_AUTH
   if (!server.hasArg("token") || server.arg("token") != cfg::TOKEN) {
     server.send(403, "text/html",
-                "<html><body><p>Invalid token.</p><a href='/' >Back</a></body></html>");
+                "<html><body><p>Invalid token.</p><a href='/' >Back</a></body></html>");  // NOLINT
     return;
   }
 #endif
   if (!server.hasArg("name") || !server.hasArg("color")) {
     server.send(400, "text/html",
-                "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");
+                "<html><body><p>Missing name or color.</p><a href='/' >Back</a></body></html>");  // NOLINT
     return;
   }
 
@@ -660,14 +671,14 @@ void handleAdd() {
 
   if (colorStr.length() != 7 || colorStr[0] != '#') {
     server.send(400, "text/html",
-                "<html><body><p>Color must be in format #RRGGBB.</p><a href='/' >Back</a></body></html>");
+                "<html><body><p>Color must be in format #RRGGBB.</p><a href='/' >Back</a></body></html>");  // NOLINT
     return;
   }
 
   uint32_t colorVal;
   if (!parseHexColor(colorStr.c_str() + 1, colorVal)) {
     server.send(400, "text/html",
-                "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
+                "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");  // NOLINT
     return;
   }
 
@@ -769,12 +780,14 @@ void handleWifiForm() {
  * Save WiFi credentials from form
  */
 void handleWifiSave() {
-  if (!server.hasArg("ssid") || !server.hasArg("password") || !server.hasArg("host")) {
+  if (!server.hasArg("ssid") || !server.hasArg("password") ||
+      !server.hasArg("host")) {
     server.send(400, "text/html",
-                "<html><body><p>Missing SSID, password, or device name.</p><a href='/wifi'>Back</a></body></html>");
+                "<html><body><p>Missing SSID, password, or device name.</p><a href='/wifi'>Back</a></body></html>");  // NOLINT
     return;
   }
-  saveCredentials(server.arg("ssid"), server.arg("password"), server.arg("host"));
+  saveCredentials(server.arg("ssid"), server.arg("password"),
+                  server.arg("host"));
   connectWiFi();
   server.sendHeader("Location", "/");
   server.send(303);
@@ -786,18 +799,18 @@ void handleWifiSave() {
 void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
   if (type != WStype_TEXT)
     return;
-  String msg = String((char *)payload);
+  String msg = String(reinterpret_cast<char *>(payload));
 #if USE_AUTH
   String prefix = String(cfg::TOKEN) + ":";
   if (!msg.startsWith(prefix))
     return;
   msg = msg.substring(prefix.length());
 #endif
-  if (msg == "next")
+  if (msg == "next") {
     nextPreset();
-  else if (msg == "prev")
+  } else if (msg == "prev") {
     previousPreset();
-  else if (msg.startsWith("set:")) {
+  } else if (msg.startsWith("set:")) {
     String idxStr = msg.substring(4);
     bool digitsOnly = idxStr.length() > 0;
     for (size_t i = 0; i < idxStr.length() && digitsOnly; ++i) {
@@ -834,7 +847,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
         hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
       }
       if (hexOnly) {
-        long val = strtol(colorStr.c_str(), nullptr, 16);
+        auto val = strtol(colorStr.c_str(), nullptr, 16);
         presets[currentPreset].color =
             CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
         applyPreset();
@@ -941,8 +954,8 @@ void setup() {
 void loop() {
   static bool lastBtnPrev = HIGH;
   static bool lastBtnNext = HIGH;
-  static unsigned long lastDebounce = 0;
-  const unsigned long debounceDelay = 50;
+  static uint32_t lastDebounce = 0;
+  const uint32_t debounceDelay = 50;
 
   bool btnPrev = digitalRead(cfg::BTN_PREV) == LOW;
   bool btnNext = digitalRead(cfg::BTN_NEXT) == LOW;
