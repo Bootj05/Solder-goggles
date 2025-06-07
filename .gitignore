@@ -5,6 +5,8 @@
 *.secret
 # PlatformIO build directory
 .pio/
+# Local WiFi credentials
+include/secrets.h
 
 
 
