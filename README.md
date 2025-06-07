@@ -76,6 +76,13 @@ Upload to the device with:
 pio run --target upload
 ```
 
+Alternatively use `install.sh` to build the project, optionally export the
+compiled binary and flash a connected ESP32 automatically:
+
+```bash
+./install.sh
+```
+
 While running, check the serial output at `115200` baud:
 
 ```bash
