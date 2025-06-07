@@ -198,6 +198,7 @@ unsigned long animInterval = 50;
 bool wifiConnecting = false;
 unsigned long wifiConnectStart = 0;
 unsigned long wifiLastPrint = 0;
+unsigned long wifiReconnectStart = 0;
 
 Preferences prefs;
 String storedSSID;
@@ -948,6 +949,20 @@ void loop() {
   bool btnNext = digitalRead(cfg::BTN_NEXT) == LOW;
 
   handleWiFi();
+
+  wl_status_t wifiStatus = WiFi.status();
+  if (!wifiConnecting && wifiStatus == WL_DISCONNECTED) {
+    if (wifiReconnectStart == 0) {
+      wifiReconnectStart = millis();
+      Serial.println("WiFi disconnected.");
+    } else if (millis() - wifiReconnectStart > 2000) {
+      Serial.println("Reconnecting to WiFi");
+      connectWiFi();
+      wifiReconnectStart = 0;
+    }
+  } else if (wifiStatus == WL_CONNECTED) {
+    wifiReconnectStart = 0;
+  }
 
   if (millis() - lastDebounce > debounceDelay) {
     if (btnPrev && !lastBtnPrev)
