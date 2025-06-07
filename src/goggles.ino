@@ -78,6 +78,8 @@ constexpr PresetData defaultPresets[] PROGMEM = {
 std::vector<Preset> presets;
 const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
 
+constexpr char DEFAULT_HOST[] = "JohannesBril";
+
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
@@ -90,6 +92,7 @@ unsigned long animInterval = 50;
 Preferences prefs;
 String storedSSID;
 String storedPassword;
+String storedHostname;
 
 WebServer server(80);
 WebSocketsServer ws(81);
@@ -98,16 +101,20 @@ void loadCredentials() {
   prefs.begin("wifi", true);
   storedSSID = prefs.getString("ssid", "");
   storedPassword = prefs.getString("pass", "");
+  storedHostname = prefs.getString("host", DEFAULT_HOST);
   prefs.end();
 }
 
-void saveCredentials(const String &ssid, const String &password) {
+void saveCredentials(const String &ssid, const String &password,
+                     const String &host) {
   prefs.begin("wifi", false);
   prefs.putString("ssid", ssid);
   prefs.putString("pass", password);
+  prefs.putString("host", host);
   prefs.end();
   storedSSID = ssid;
   storedPassword = password;
+  storedHostname = host;
 }
 
 /**
@@ -118,6 +125,7 @@ void connectWiFi() {
   loadCredentials();
   const char *ssid = storedSSID.length() ? storedSSID.c_str() : cfg::SSID;
   const char *pass = storedPassword.length() ? storedPassword.c_str() : cfg::PASSWORD;
+  const char *host = storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
@@ -130,6 +138,12 @@ void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println(" connected!");
     Serial.println(WiFi.localIP());
+    if (MDNS.begin(host)) {
+      Serial.print("mDNS active on ");
+      Serial.print(host);
+      Serial.println(".local");
+    }
+    ArduinoOTA.setHostname(host);
   } else {
     Serial.println(" failed to connect.");
   }
@@ -419,7 +433,10 @@ void handleWifiForm() {
       "<div class='col-12'><label class='form-label' for='password'>Password</label>"
       "<input class='form-control' id='password' name='password' type='password' value='" +
       storedPassword + "'></div>"
-      "<div class='col-12'><button class='btn btn-primary'>Save</button></div></form>"
+      "<div class='form-group'><label for='host'>Device name</label>"
+      "<input class='form-control' id='host' name='host' value='" +
+      storedHostname + "'></div>"
+      "<button class='btn btn-primary'>Save</button></form>"
       "</body></html>";
   server.send(200, "text/html", html);
 }
@@ -428,12 +445,12 @@ void handleWifiForm() {
  * Save WiFi credentials from form
  */
 void handleWifiSave() {
-  if (!server.hasArg("ssid") || !server.hasArg("password")) {
+  if (!server.hasArg("ssid") || !server.hasArg("password") || !server.hasArg("host")) {
     server.send(400, "text/html",
-                "<html><body><p>Missing SSID or password.</p><a href='/wifi'>Back</a></body></html>");
+                "<html><body><p>Missing SSID, password, or device name.</p><a href='/wifi'>Back</a></body></html>");
     return;
   }
-  saveCredentials(server.arg("ssid"), server.arg("password"));
+  saveCredentials(server.arg("ssid"), server.arg("password"), server.arg("host"));
   connectWiFi();
   server.sendHeader("Location", "/");
   server.send(303);
@@ -531,9 +548,6 @@ void setup() {
   currentPreset = presets.size() - 1;
 
   connectWiFi();
-  if (MDNS.begin("JohannesBril")) {
-    Serial.println("mDNS active on JohannesBril.local");
-  }
 
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
@@ -547,7 +561,6 @@ void setup() {
   ws.begin();
   ws.onEvent(wsEvent);
 
-  ArduinoOTA.setHostname("JohannesBril");
   ArduinoOTA.begin();
 
   applyPreset();

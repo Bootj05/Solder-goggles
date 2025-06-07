@@ -2,6 +2,12 @@
 
 Pair of specs with magnifier glass upgraded with 13 LEDs.
 
+## Prerequisites
+
+`python3` and `pip` must be installed before running `setup.sh` or
+`install.sh`. These scripts will install PlatformIO automatically. You
+can use a Python virtual environment if preferred.
+
 ## Firmware
 
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
@@ -17,7 +23,8 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Web interface for switching LED presets
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
-- Runtime WiFi configuration at `/wifi`
+- Runtime WiFi configuration at `/wifi` (SSID, password and device name)
+- Custom mDNS hostname
 
 ### Hardware
 The previous and next buttons are wired as active-low and rely on the microcontroller's internal pull-up resistors.

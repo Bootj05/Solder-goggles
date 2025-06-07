@@ -2,6 +2,7 @@
 # Install and flash script for ESP32
 set -e
 
+
 # Offer a Python virtual environment
 read -p "Use a Python virtual environment? [y/N] " use_venv
 if [[ $use_venv =~ ^[Yy]$ ]]; then
