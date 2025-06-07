@@ -955,10 +955,21 @@ void loop() {
   static bool lastBtnPrev = HIGH;
   static bool lastBtnNext = HIGH;
   static uint32_t lastDebounce = 0;
+  static wl_status_t lastWiFiStatus = WL_IDLE_STATUS;
   const uint32_t debounceDelay = 50;
 
   bool btnPrev = digitalRead(cfg::BTN_PREV) == LOW;
   bool btnNext = digitalRead(cfg::BTN_NEXT) == LOW;
+
+  wl_status_t status = WiFi.status();
+  if (status != lastWiFiStatus) {
+    if (status == WL_DISCONNECTED && !wifiConnecting) {
+      Serial.println("\nWiFi disconnected, reconnecting...");
+      delay(500);
+      connectWiFi();
+    }
+    lastWiFiStatus = status;
+  }
 
   handleWiFi();
 
