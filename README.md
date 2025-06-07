@@ -7,6 +7,10 @@ Pair of specs with magnifier glass upgraded with 13 LEDs.
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
 Copy `include/secrets_example.h` to `include/secrets.h` and add your WiFi
 credentials as `WIFI_SSID` and `WIFI_PASSWORD`.
+To protect the web interface and WebSocket API you can set `USE_AUTH` to `1`
+and choose an `AUTH_TOKEN` in `secrets.h`. When enabled, the `/add` endpoint
+expects a `token` parameter and WebSocket commands must be prefixed with
+`<token>:`.
 
 ### Features
 - Web interface for switching LED presets
@@ -23,6 +27,8 @@ to control the active preset. Example using [`wscat`](https://github.com/websock
 ```bash
 wscat -c ws://<device_ip>:81/ -x next
 ```
+# If authentication is enabled prepend the token to each command,
+# e.g. `wscat -c ws://<device_ip>:81/ -x <token>:next`.
 
 Available commands:
 
