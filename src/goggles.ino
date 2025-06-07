@@ -64,7 +64,7 @@ struct PresetData {
   CRGB color;
 };
 
-const PresetData defaultPresets[] PROGMEM = {
+constexpr PresetData defaultPresets[] PROGMEM = {
     {"White", PresetType::STATIC, CRGB::White},
     {"Rainbow", PresetType::RAINBOW, CRGB::Black},
     {"Police NL", PresetType::POLICE_NL, CRGB::Black},
