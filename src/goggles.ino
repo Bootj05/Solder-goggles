@@ -10,6 +10,7 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
 #include <vector>
 #include <ctype.h>
 
@@ -46,12 +47,22 @@ struct Preset {
   CRGB color; // Only for STATIC
 };
 
-std::vector<Preset> presets{{"White", PresetType::STATIC, CRGB::White},
-                            {"Rainbow", PresetType::RAINBOW, CRGB::Black},
-                            {"Police NL", PresetType::POLICE_NL, CRGB::Black},
-                            {"Police USA", PresetType::POLICE_USA, CRGB::Black},
-                            {"Strobe", PresetType::STROBE, CRGB::Black},
-                            {"Lavalamp", PresetType::LAVALAMP, CRGB::Black}};
+struct PresetData {
+  const char *name;
+  PresetType type;
+  CRGB color;
+};
+
+const PresetData defaultPresets[] PROGMEM = {
+    {"White", PresetType::STATIC, CRGB::White},
+    {"Rainbow", PresetType::RAINBOW, CRGB::Black},
+    {"Police NL", PresetType::POLICE_NL, CRGB::Black},
+    {"Police USA", PresetType::POLICE_USA, CRGB::Black},
+    {"Strobe", PresetType::STROBE, CRGB::Black},
+    {"Lavalamp", PresetType::LAVALAMP, CRGB::Black}};
+
+std::vector<Preset> presets;
+const size_t DEFAULT_PRESET_COUNT = sizeof(defaultPresets) / sizeof(defaultPresets[0]);
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
@@ -81,6 +92,53 @@ void connectWiFi() {
   } else {
     Serial.println(" failed to connect.");
   }
+}
+
+void loadDefaultPresets() {
+  presets.clear();
+  for (size_t i = 0; i < DEFAULT_PRESET_COUNT; ++i) {
+    PresetData data;
+    memcpy_P(&data, &defaultPresets[i], sizeof(PresetData));
+    presets.push_back({String(data.name), data.type, data.color});
+  }
+}
+
+void loadCustomPresets() {
+  File f = SPIFFS.open("/presets.txt", "r");
+  if (!f)
+    return;
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (!line.length())
+      continue;
+    int first = line.indexOf(',');
+    int second = line.indexOf(',', first + 1);
+    if (first == -1 || second == -1)
+      continue;
+    String name = line.substring(0, first);
+    int type = line.substring(first + 1, second).toInt();
+    String colStr = line.substring(second + 1);
+    uint32_t val = strtoul(colStr.c_str(), nullptr, 16);
+    presets.push_back({name, static_cast<PresetType>(type),
+                       CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF,
+                            val & 0xFF)});
+  }
+  f.close();
+}
+
+void saveCustomPresets() {
+  File f = SPIFFS.open("/presets.txt", "w");
+  if (!f)
+    return;
+  for (size_t i = DEFAULT_PRESET_COUNT; i < presets.size(); ++i) {
+    char buf[64];
+    sprintf(buf, "%s,%d,%02x%02x%02x\n", presets[i].name.c_str(),
+            static_cast<int>(presets[i].type), presets[i].color.r,
+            presets[i].color.g, presets[i].color.b);
+    f.print(buf);
+  }
+  f.close();
 }
 
 /**
@@ -214,6 +272,7 @@ void handleAdd() {
   presets.push_back({name, PresetType::STATIC,
                      CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
   currentPreset = presets.size() - 1;
+  saveCustomPresets();
   applyPreset();
 
   server.sendHeader("Location", "/");
@@ -257,6 +316,10 @@ void setup() {
   // Buttons use internal pull-ups and are thus active-low
   pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
+
+  SPIFFS.begin(true);
+  loadDefaultPresets();
+  loadCustomPresets();
 
   connectWiFi();
   if (MDNS.begin("JohannesBril")) {
