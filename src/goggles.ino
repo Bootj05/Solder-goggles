@@ -51,6 +51,9 @@ unsigned long lastAnim = 0;
 WebServer server(80);
 WebSocketsServer ws(81);
 
+
+#include "utils.h"
+
 /**
  * Connect to WiFi using credentials from secrets.h
  */
@@ -184,25 +187,14 @@ void handleAdd() {
 
   String name = server.arg("name");
   String colorStr = server.arg("color");
-
-  if (colorStr.length() != 7 || colorStr[0] != '#') {
+  CRGB color;
+  if (!parseHexColor(colorStr, color)) {
     server.send(400, "text/html",
-                "<html><body><p>Color must be in format #RRGGBB.</p><a href='/' >Back</a></body></html>");
+                "<html><body><p>Color must be in format #RRGGBB and contain valid hex digits.</p><a href='/' >Back</a></body></html>");
     return;
   }
 
-  colorStr = colorStr.substring(1);
-  for (size_t i = 0; i < colorStr.length(); ++i) {
-    if (!isxdigit(static_cast<unsigned char>(colorStr[i]))) {
-      server.send(400, "text/html",
-                  "<html><body><p>Color contains invalid hex characters.</p><a href='/' >Back</a></body></html>");
-      return;
-    }
-  }
-
-  long val = strtol(colorStr.c_str(), nullptr, 16);
-  presets.push_back({name, PresetType::STATIC,
-                     CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF)});
+  presets.push_back({name, PresetType::STATIC, color});
   currentPreset = presets.size() - 1;
   applyPreset();
 
