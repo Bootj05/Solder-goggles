@@ -33,7 +33,7 @@ const char *TOKEN = AUTH_TOKEN;
  *
  * - `STATIC` &mdash; Solid color chosen per preset.
  * - `RAINBOW` &mdash; Continuously cycling rainbow.
- * - `POLICE_NL` &mdash; Blue and white pattern similar to Dutch police lights.
+ * - `POLICE_NL` &mdash; Segmented blue pattern with timed strobe like Dutch police lights.
  * - `POLICE_USA` &mdash; Red, white and blue pattern similar to US police lights.
  * - `STROBE` &mdash; Fast white flash on and off.
  * - `LAVALAMP` &mdash; Slowly moving color gradient.
@@ -279,8 +279,8 @@ void applyPreset() {
     static uint32_t flashCount = 0;
     static bool strobe = false;
     static uint8_t strobeGroup = 0;   // 1 or 2 when strobing
-    const uint16_t flashInterval = 500;  // ms
-    const uint16_t strobeInterval = 50;  // ms
+    const uint16_t flashInterval = 250;  // ms
+    const uint16_t strobeInterval = 20;  // ms
 
     if (millis() - lastToggle >= flashInterval) {
       phase = !phase;
@@ -313,8 +313,8 @@ void applyPreset() {
         setGroup(3, 3, CRGB::Black);
         setGroup(9, 4, CRGB::Black);
       } else {
-        setGroup(3, 3, strobeOn ? CRGB::White : CRGB::Black);
-        setGroup(9, 4, strobeOn ? CRGB::White : CRGB::Black);
+        setGroup(3, 3, strobeOn ? CRGB::Blue : CRGB::Black);
+        setGroup(9, 4, strobeOn ? CRGB::Blue : CRGB::Black);
         setGroup(0, 3, CRGB::Black);
         setGroup(6, 3, CRGB::Black);
       }
@@ -324,8 +324,8 @@ void applyPreset() {
       setGroup(3, 3, CRGB::Black);
       setGroup(9, 4, CRGB::Black);
     } else {
-      setGroup(3, 3, CRGB::White);
-      setGroup(9, 4, CRGB::White);
+      setGroup(3, 3, CRGB::Blue);
+      setGroup(9, 4, CRGB::Blue);
       setGroup(0, 3, CRGB::Black);
       setGroup(6, 3, CRGB::Black);
     }
