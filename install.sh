@@ -76,6 +76,7 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Build firmware for esp32 environment
+pio lib -g install fastled/FastLED@3.9.20
 pio run -e esp32
 
 BIN_PATH=.pio/build/esp32/firmware.bin

@@ -93,6 +93,10 @@ unsigned long lastAnim = 0;
 uint8_t brightness = 255;
 unsigned long animInterval = 50;
 
+bool wifiConnecting = false;
+unsigned long wifiConnectStart = 0;
+unsigned long wifiLastPrint = 0;
+
 Preferences prefs;
 String storedSSID;
 String storedPassword;
@@ -133,13 +137,18 @@ void connectWiFi() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
-  unsigned long start = millis();
+  wifiConnectStart = millis();
+  wifiConnecting = true;
+  wifiLastPrint = 0;
   Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
-    delay(500);
-    Serial.print('.');
-  }
+}
+
+void handleWiFi() {
+  if (!wifiConnecting)
+    return;
+  const char *host = storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   if (WiFi.status() == WL_CONNECTED) {
+    wifiConnecting = false;
     Serial.println(" connected!");
     Serial.println(WiFi.localIP());
     if (MDNS.begin(host)) {
@@ -148,8 +157,16 @@ void connectWiFi() {
       Serial.println(".local");
     }
     ArduinoOTA.setHostname(host);
-  } else {
+    return;
+  }
+  if (millis() - wifiConnectStart > 15000) {
+    wifiConnecting = false;
     Serial.println(" failed to connect.");
+    return;
+  }
+  if (millis() - wifiLastPrint > 500) {
+    Serial.print('.');
+    wifiLastPrint = millis();
   }
 }
 
@@ -451,13 +468,13 @@ const char HTML_PAGE[] PROGMEM = R"html(
 void handleRoot() {
   String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    presetList +=
-        "<li class='list-group-item d-flex justify-content-between align-items-center position-relative'>";
+    presetList += "<li class='list-group-item position-relative'>";
+    presetList += "<a href='/set?i=" + String(i) +
+                   "' class='d-flex justify-content-between align-items-center text-reset text-decoration-none stretched-link'>";
     presetList += presets[i].name;
     if (i == currentPreset)
-      presetList += " <span class='badge bg-success'>active</span>";
-    presetList += "<a href='/set?i=" + String(i) +
-                   "' class='stretched-link text-reset text-decoration-none'></a></li>";
+      presetList += " <span class='badge bg-success position-relative z-3'>active</span>";
+    presetList += "</a></li>";
   }
 
   String html = FPSTR(HTML_PAGE);
@@ -734,6 +751,8 @@ void loop() {
 
   bool btnPrev = digitalRead(cfg::BTN_PREV) == LOW;
   bool btnNext = digitalRead(cfg::BTN_NEXT) == LOW;
+
+  handleWiFi();
 
   if (millis() - lastDebounce > debounceDelay) {
     if (btnPrev && !lastBtnPrev)
