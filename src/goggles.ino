@@ -324,13 +324,13 @@ const char HTML_PAGE[] PROGMEM = R"html(
 void handleRoot() {
   String presetList;
   for (size_t i = 0; i < presets.size(); ++i) {
-    presetList += "<li class='list-group-item d-flex justify-content-between align-items-center'>";
+    presetList +=
+        "<li class='list-group-item d-flex justify-content-between align-items-center position-relative'>";
     presetList += presets[i].name;
     if (i == currentPreset)
       presetList += " <span class='badge bg-success'>active</span>";
-    else
-      presetList += " <a class='btn btn-sm btn-outline-light' href='/set?i=" + String(i) + "'>Select</a>";
-    presetList += "</li>";
+    presetList += "<a href='/set?i=" + String(i) +
+                   "' class='stretched-link text-reset text-decoration-none'></a></li>";
   }
 
   String html = FPSTR(HTML_PAGE);
