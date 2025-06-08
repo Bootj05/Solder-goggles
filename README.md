@@ -124,13 +124,30 @@ Alternatively use `install.sh` to build the project, optionally export the
 compiled binary and flash a connected ESP32 automatically. If
 `include/secrets.h` is missing it will prompt for your WiFi details just like
 `setup.sh`. Both scripts also allow using a virtual environment and print
-the failing command when something goes wrong:
+the failing command when something goes wrong. The script walks you through
+each step interactively:
 
 ```bash
 ./install.sh
 ```
 
-While running, check the serial output at `115200` baud:
+Example prompts during installation:
+
+```text
+Use a Python virtual environment? [y/N]
+Create include/secrets.h now? [y/N]
+WiFi SSID: <your_ssid>
+WiFi password: <hidden>
+Export firmware binary to firmware.bin? [y/N]
+Searching for connected ESP32 boards...
+1) /dev/ttyUSB0
+Flash firmware to /dev/ttyUSB0? [y/N]
+Writing firmware...
+Flash complete.
+```
+
+The script scans for attached ESP32 boards and lets you choose the serial port
+before flashing. While running, check the serial output at `115200` baud:
 
 ```bash
 pio device monitor
