@@ -749,13 +749,8 @@ void handleCommand(String msg) {
   } else if (msg.startsWith("color:")) {
     String colorStr = msg.substring(6);
     if (colorStr.length() == 7 && colorStr[0] == '#') {
-      colorStr = colorStr.substring(1);
-      bool hexOnly = colorStr.length() == 6;
-      for (size_t i = 0; i < colorStr.length() && hexOnly; ++i) {
-        hexOnly = isxdigit(static_cast<unsigned char>(colorStr[i]));
-      }
-      if (hexOnly) {
-        auto val = strtol(colorStr.c_str(), nullptr, 16);
+      uint32_t val;
+      if (parseHexColor(colorStr.c_str() + 1, val)) {
         presets[currentPreset].color =
             CRGB((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
         applyPreset();
