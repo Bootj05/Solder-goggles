@@ -8,3 +8,9 @@
 # Local WiFi credentials
 include/secrets.h
 
+# Firmware build artifacts
+firmware.bin
+*.bin
+*.elf
+*.map
+
