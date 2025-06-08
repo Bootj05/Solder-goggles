@@ -16,6 +16,12 @@ void test_valid_color() {
     TEST_ASSERT_EQUAL_HEX32(0xff00ff, val);
 }
 
+void test_uppercase_color() {
+    uint32_t val;
+    TEST_ASSERT_TRUE(parseHexColor("FF00FF", val));
+    TEST_ASSERT_EQUAL_HEX32(0xFF00FF, val);
+}
+
 void test_invalid_length() {
     uint32_t val;
     TEST_ASSERT_FALSE(parseHexColor("fff", val));
@@ -26,11 +32,18 @@ void test_invalid_chars() {
     TEST_ASSERT_FALSE(parseHexColor("gg0000", val));
 }
 
+void test_invalid_chars_upper() {
+    uint32_t val;
+    TEST_ASSERT_FALSE(parseHexColor("FF00FG", val));
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_valid_color);
+    RUN_TEST(test_uppercase_color);
     RUN_TEST(test_invalid_length);
     RUN_TEST(test_invalid_chars);
+    RUN_TEST(test_invalid_chars_upper);
     RUN_TEST(test_next_message);
     RUN_TEST(test_set_message);
     RUN_TEST(test_brightness_message);
