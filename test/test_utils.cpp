@@ -6,6 +6,9 @@
 void test_next_message();
 void test_set_message();
 void test_brightness_message();
+void test_color_message();
+void test_speed_message();
+void test_leds_message();
 
 void test_valid_color() {
     uint32_t val;
@@ -31,6 +34,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_next_message);
     RUN_TEST(test_set_message);
     RUN_TEST(test_brightness_message);
+    RUN_TEST(test_color_message);
+    RUN_TEST(test_speed_message);
+    RUN_TEST(test_leds_message);
     return UNITY_END();
 }
 
