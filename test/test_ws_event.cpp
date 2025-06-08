@@ -88,7 +88,8 @@ static void wsEvent(uint8_t /*num*/, WStype_t type, uint8_t *payload,
         size_t idx = 0;
         while (idx < NUM_LEDS && !data.empty()) {
             size_t sep = data.find(',');
-            std::string tok = sep == std::string::npos ? data : data.substr(0, sep);
+            std::string tok =
+                sep == std::string::npos ? data : data.substr(0, sep);
             if (!tok.empty() && tok[0] == '#')
                 tok.erase(0, 1);
             uint32_t val;
