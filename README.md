@@ -10,6 +10,10 @@ can use a Python virtual environment if preferred. If any command fails
 the scripts report the line number and offending command so problems are
 easy to track down.
 
+The helper scripts require a POSIX-compliant **Bash** shell. On Windows you
+can use [Git Bash](https://gitforwindows.org/) or the Windows Subsystem for
+Linux (WSL).
+
 ## Firmware
 
 Firmware lives in `src` and is built with [PlatformIO](https://platformio.org/).
