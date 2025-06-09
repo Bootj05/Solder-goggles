@@ -97,6 +97,21 @@ if [ ! -f include/secrets.h ]; then
     fi
 fi
 
+# Allow user to override hardware pins and hostname
+read -p "LED pin (default 2): " led_pin
+led_pin=${led_pin:-2}
+read -p "Previous button pin (default 0): " btn_prev
+btn_prev=${btn_prev:-0}
+read -p "Next button pin (default 35): " btn_next
+btn_next=${btn_next:-35}
+read -p "mDNS hostname (default JohannesBril): " mdns_name
+mdns_name=${mdns_name:-JohannesBril}
+mdns_escaped=$(escape_sed_replacement "$mdns_name")
+sed_inplace "s|constexpr uint8_t LED_PIN = .*;|constexpr uint8_t LED_PIN = ${led_pin};|" src/goggles.ino
+sed_inplace "s|constexpr uint8_t BTN_PREV = .*;|constexpr uint8_t BTN_PREV = ${btn_prev};|" src/goggles.ino
+sed_inplace "s|constexpr uint8_t BTN_NEXT = .*;|constexpr uint8_t BTN_NEXT = ${btn_next};|" src/goggles.ino
+sed_inplace "s|constexpr char DEFAULT_HOST\[] = \".*\";|constexpr char DEFAULT_HOST[] = \"${mdns_escaped}\";|" src/goggles.ino
+
 # Build firmware for esp32 environment
 if ! pio pkg install --global -l fastled/FastLED@3.9.20; then
     echo "Library installation failed" >&2
