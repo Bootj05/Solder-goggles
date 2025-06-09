@@ -107,7 +107,8 @@ pio run --target upload
 ### OTA updates
 Once the firmware has been flashed at least once you can upload new
 versions over WiFi. The `esp32-ota` PlatformIO environment is configured
-for OTA using the default mDNS host `JohannesBril.local`.
+for OTA using the default mDNS host `JohannesBril.local` (or the hostname
+chosen during installation).
 
 ```bash
 pio run -e esp32-ota --target upload
@@ -138,6 +139,10 @@ Use a Python virtual environment? [y/N]
 Create include/secrets.h now? [y/N]
 WiFi SSID: <your_ssid>
 WiFi password: <hidden>
+LED pin (default 2): 2
+Previous button pin (default 0): 0
+Next button pin (default 35): 35
+mDNS hostname (default JohannesBril): MyGoggles
 Export firmware binary to firmware.bin? [y/N]
 Searching for connected ESP32 boards...
 1) /dev/ttyUSB0
