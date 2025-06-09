@@ -113,7 +113,9 @@ sed_inplace "s|constexpr uint8_t BTN_NEXT = .*;|constexpr uint8_t BTN_NEXT = ${b
 sed_inplace "s|constexpr char DEFAULT_HOST\[] = \".*\";|constexpr char DEFAULT_HOST[] = \"${mdns_escaped}\";|" src/goggles.ino
 
 # Build firmware for esp32 environment
-if ! pio pkg install --global -l fastled/FastLED@3.9.20; then
+if ! pio pkg install --global \
+        -l fastled/FastLED@3.9.20 \
+        -l links2004/WebSockets; then
     echo "Library installation failed" >&2
     exit 1
 fi
