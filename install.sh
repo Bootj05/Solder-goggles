@@ -42,6 +42,37 @@ escape_sed_replacement() {
     printf '%s' "$1" | sed -e 's/[\\/&|]/\\&/g'
 }
 
+# Display help text
+show_help() {
+    cat <<EOF
+Usage: $0 [OPTION]
+
+Steps performed by the script:
+ 1. Offer to create a Python virtual environment
+ 2. Install PlatformIO if missing
+ 3. Build the firmware for the esp32 environment
+ 4. Optionally export the firmware binary
+ 5. Detect a connected ESP32 and flash it
+
+Each step prompts interactively. Answer 'n' or press Enter to skip an optional action.
+EOF
+}
+
+# Parse command-line arguments
+for arg in "$@"; do
+    case $arg in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg" >&2
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
 
 # Offer a Python virtual environment
 read -p "Use a Python virtual environment? [y/N] " use_venv
