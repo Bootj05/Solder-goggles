@@ -1,7 +1,7 @@
 // Copyright 2025 Bootj05
 //
 // Licensed under the MIT License.
-#include "include/utils.h"
+#include "utils.h"
 
 #include <stddef.h>
 

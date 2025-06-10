@@ -22,7 +22,7 @@
 #include <BluetoothSerial.h>
 
 #include "secrets.h"  // NOLINT(build/include_subdir)
-#include "include/utils.h"
+#include "utils.h"
 
 #ifndef KEEP_NAMES_IN_FLASH
 #define KEEP_NAMES_IN_FLASH 0

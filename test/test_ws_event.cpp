@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstdlib>
-#include "include/utils.h"
+#include "utils.h"
 
 // Minimal stand-ins for firmware globals and helpers
 constexpr size_t NUM_LEDS = 13;
