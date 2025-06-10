@@ -28,10 +28,10 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 
 ### Features
 - Web interface for switching LED presets
-- OTA updates over WiFi
+- OTA updates over WiFi via web interface or PlatformIO
 - Simple WebSocket API for remote control
 - Bluetooth serial control with the same commands
-- Runtime WiFi configuration at `/wifi` (SSID, password and device name)
+- Runtime WiFi configuration at `/wifi` (form pre-filled with stored SSID and device name)
 - Custom mDNS hostname
 - Per-LED custom colors stored as a new `CUSTOM` preset
 - Configurable "hold" button to temporarily switch to a preset
@@ -122,6 +122,9 @@ Once the firmware has been flashed at least once you can upload new
 versions over WiFi. The `esp32-ota` PlatformIO environment is configured
 for OTA using the default mDNS host `JohannesBril.local` (or the hostname
 chosen during installation).
+
+Open `http://<device_ip>/update` in your browser to upload a compiled
+`firmware.bin` directly through the web interface.
 
 ```bash
 pio run -e esp32-ota --target upload
