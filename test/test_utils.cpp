@@ -17,6 +17,7 @@ void test_brightness_invalid();
 void test_speed_invalid();
 void test_speed_nonnumeric();
 void test_leds_bad_data();
+void test_wifi_form_hostname();
 
 void test_valid_color() {
     uint32_t val;
@@ -66,6 +67,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_speed_invalid);
     RUN_TEST(test_speed_nonnumeric);
     RUN_TEST(test_leds_bad_data);
+    RUN_TEST(test_wifi_form_hostname);
     return UNITY_END();
 }
 

@@ -820,11 +820,11 @@ const char WIFI_FORM_HTML[] PROGMEM = R"html(
 <h1 class='mb-3'>WiFi Credentials</h1>
 <form method='POST' action='/wifi' class='row g-3'>
 <div class='col-12'><label class='form-label' for='ssid'>SSID</label>
-<input class='form-control' id='ssid' name='ssid'></div>
+<input class='form-control' id='ssid' name='ssid' value='%SSID%'></div>
 <div class='col-12'><label class='form-label' for='password'>Password</label>
 <input class='form-control' id='password' name='password' type='password'></div>
 <div class='form-group'><label for='host'>Device name</label>
-<input class='form-control' id='host' name='host'></div>
+<input class='form-control' id='host' name='host' value='%HOST%'></div>
 <button class='btn btn-primary'>Save</button></form>
 </body></html>
 )html";
@@ -846,7 +846,11 @@ const char UPDATE_FORM_HTML[] PROGMEM = R"html(
 )html";
 
 void handleWifiForm() {
-  server.send_P(200, "text/html", WIFI_FORM_HTML);
+  loadCredentials();
+  String html = FPSTR(WIFI_FORM_HTML);
+  html.replace("%SSID%", storedSSID);
+  html.replace("%HOST%", storedHostname);
+  server.send(200, "text/html", html);
 }
 
 /**
