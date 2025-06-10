@@ -30,14 +30,16 @@
 #endif
 
 namespace cfg {
-constexpr uint8_t LED_PIN = 2;
-constexpr uint8_t NUM_LEDS = 13;
-constexpr uint8_t BTN_PREV = 0;
-constexpr uint8_t BTN_NEXT = 35;
-const char *SSID = WIFI_SSID;
-const char *PASSWORD = WIFI_PASSWORD;
+  constexpr uint8_t LED_PIN = 2;
+  constexpr uint8_t NUM_LEDS = 13;
+  constexpr uint8_t BTN_PREV = 0;
+  constexpr uint8_t BTN_NEXT = 35;
+  // When held this button temporarily activates a user-selected preset
+  constexpr uint8_t BTN_HOLD = 17;
+  const char *SSID = WIFI_SSID;
+  const char *PASSWORD = WIFI_PASSWORD;
 #ifdef USE_AUTH
-const char *TOKEN = AUTH_TOKEN;
+  const char *TOKEN = AUTH_TOKEN;
 #endif
 }  // namespace cfg
 
@@ -138,6 +140,10 @@ constexpr char DEFAULT_HOST[] = "JohannesBril";
 
 CRGB leds[cfg::NUM_LEDS];
 int currentPreset = 0;
+// Index of the preset triggered when BTN_HOLD is pressed
+int holdPreset = 0;
+// Previous preset to restore after releasing BTN_HOLD
+int savedPreset = -1;
 uint8_t rainbowHue = 0;
 
 uint32_t lastAnim = 0;
@@ -176,6 +182,18 @@ void saveCredentials(const String &ssid, const String &password,
   storedSSID = ssid;
   storedPassword = password;
   storedHostname = host;
+}
+
+void loadHoldPreset() {
+  prefs.begin("cfg", true);
+  holdPreset = prefs.getInt("hold", 0);
+  prefs.end();
+}
+
+void saveHoldPreset() {
+  prefs.begin("cfg", false);
+  prefs.putInt("hold", holdPreset);
+  prefs.end();
 }
 
 /**
@@ -583,6 +601,16 @@ const char HTML_PAGE[] PROGMEM = R"html(
       <button class='btn btn-primary'>Add</button>
     </div>
   </form>
+  <form method='GET' action='/hold' class='row row-cols-lg-auto g-3 align-items-center mt-3'>
+    <div class='col-12'>
+      <select class='form-select' id='hold' name='i'>
+        %HOLD_OPTIONS%
+      </select>
+    </div>
+    <div class='col-12'>
+      <button class='btn btn-secondary'>Set Hold Preset</button>
+    </div>
+  </form>
   <a class='btn btn-link mt-3' href='/wifi'>WiFi setup</a>
 </body>
 </html>
@@ -610,9 +638,28 @@ void handleRoot() {
     presetList += "</a></li>";
   }
 
+  String holdOpts;
+  holdOpts.reserve(presets.size() * 40);
+  for (size_t i = 0; i < presets.size(); ++i) {
+    holdOpts += "<option value='" + String(i) + "'";
+    if (i == holdPreset)
+      holdOpts += " selected";
+    holdOpts += ">";
+#if KEEP_NAMES_IN_FLASH
+    if (presets[i].flashName)
+      holdOpts += String(FPSTR(presets[i].flashName));
+    else
+      holdOpts += presets[i].name;
+#else
+    holdOpts += presets[i].name;
+#endif
+    holdOpts += "</option>";
+  }
+
   String html = FPSTR(HTML_PAGE);
   html.replace("%PRESETS%", presetList);
   html.replace("%BRIGHT%", String(brightness));
+  html.replace("%HOLD_OPTIONS%", holdOpts);
   server.send(200, "text/html", html);
 }
 
@@ -774,6 +821,23 @@ void handleSet() {
   server.send(303);
 }
 
+/** Set the preset used when BTN_HOLD is pressed */
+void handleHold() {
+  if (!server.hasArg("i")) {
+    server.send(400, "text/plain", "Missing index");
+    return;
+  }
+  int idx = server.arg("i").toInt();
+  if (idx < 0 || idx >= presets.size()) {
+    server.send(400, "text/plain", "Invalid index");
+    return;
+  }
+  holdPreset = idx;
+  saveHoldPreset();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
 /** Navigate to next preset */
 void handleNext() {
   nextPreset();
@@ -869,6 +933,7 @@ void wsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
 void setup() {
   Serial.begin(115200);
   loadCredentials();
+  loadHoldPreset();
   const char *btName =
       storedHostname.length() ? storedHostname.c_str() : DEFAULT_HOST;
   bt.begin(btName);
@@ -879,6 +944,10 @@ void setup() {
     pinMode(cfg::BTN_NEXT, INPUT);
   else
     pinMode(cfg::BTN_NEXT, INPUT_PULLUP);
+  if (cfg::BTN_HOLD >= 34)
+    pinMode(cfg::BTN_HOLD, INPUT);
+  else
+    pinMode(cfg::BTN_HOLD, INPUT_PULLUP);
   FastLED.addLeds<WS2812, cfg::LED_PIN, GRB>(leds, cfg::NUM_LEDS);
   FastLED.setBrightness(brightness);
 
@@ -903,6 +972,7 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/add", HTTP_POST, handleAdd);
   server.on("/set", HTTP_GET, handleSet);
+  server.on("/hold", HTTP_GET, handleHold);
   server.on("/next", HTTP_GET, handleNext);
   server.on("/prev", HTTP_GET, handlePrev);
   server.on("/bright", HTTP_GET, handleBright);
@@ -924,12 +994,14 @@ void setup() {
 void loop() {
   static bool lastBtnPrev = HIGH;
   static bool lastBtnNext = HIGH;
+  static bool lastBtnHold = HIGH;
   static uint32_t lastDebounce = 0;
   static wl_status_t lastWiFiStatus = WL_IDLE_STATUS;
   const uint32_t debounceDelay = 50;
 
   bool btnPrev = digitalRead(cfg::BTN_PREV) == LOW;
   bool btnNext = digitalRead(cfg::BTN_NEXT) == LOW;
+  bool btnHold = digitalRead(cfg::BTN_HOLD) == LOW;
 
   wl_status_t status = WiFi.status();
   if (status != lastWiFiStatus) {
@@ -948,11 +1020,24 @@ void loop() {
       previousPreset();
     if (btnNext && !lastBtnNext)
       nextPreset();
+    if (btnHold && !lastBtnHold) {
+      savedPreset = currentPreset;
+      if (holdPreset >= 0 && holdPreset < presets.size()) {
+        currentPreset = holdPreset;
+        applyPreset();
+      }
+    }
+    if (!btnHold && lastBtnHold && savedPreset != -1) {
+      currentPreset = savedPreset;
+      savedPreset = -1;
+      applyPreset();
+    }
     lastDebounce = millis();
   }
 
   lastBtnPrev = btnPrev;
   lastBtnNext = btnNext;
+  lastBtnHold = btnHold;
 
   server.handleClient();
   ws.loop();

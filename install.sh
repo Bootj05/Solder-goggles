@@ -160,6 +160,7 @@ if [ "$NON_INTERACTIVE" = true ]; then
     btn_prev=0
     btn_next=35
     mdns_name=JohannesBril
+    btn_hold=17
 else
     read -p "LED pin (default 2): " led_pin
     led_pin=${led_pin:-2}
@@ -169,11 +170,14 @@ else
     btn_next=${btn_next:-35}
     read -p "mDNS hostname (default JohannesBril): " mdns_name
     mdns_name=${mdns_name:-JohannesBril}
+    read -p "Hold button pin (default 17): " btn_hold
+    btn_hold=${btn_hold:-17}
 fi
 mdns_escaped=$(escape_sed_replacement "$mdns_name")
 sed_inplace "s|constexpr uint8_t LED_PIN = .*;|constexpr uint8_t LED_PIN = ${led_pin};|" src/goggles.ino
 sed_inplace "s|constexpr uint8_t BTN_PREV = .*;|constexpr uint8_t BTN_PREV = ${btn_prev};|" src/goggles.ino
 sed_inplace "s|constexpr uint8_t BTN_NEXT = .*;|constexpr uint8_t BTN_NEXT = ${btn_next};|" src/goggles.ino
+sed_inplace "s|constexpr uint8_t BTN_HOLD = .*;|constexpr uint8_t BTN_HOLD = ${btn_hold};|" src/goggles.ino
 sed_inplace "s|constexpr char DEFAULT_HOST\[] = \".*\";|constexpr char DEFAULT_HOST[] = \"${mdns_escaped}\";|" src/goggles.ino
 
 # Build firmware for esp32 environment
