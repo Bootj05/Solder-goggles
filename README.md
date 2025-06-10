@@ -31,7 +31,7 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - OTA updates over WiFi
 - Simple WebSocket API for remote control
 - Bluetooth serial control with the same commands
-- Runtime WiFi configuration at `/wifi` (SSID, password and device name)
+- Runtime WiFi configuration at `/wifi` (SSID, password and device name, form pre-filled with stored values)
 - Custom mDNS hostname
 - Per-LED custom colors stored as a new `CUSTOM` preset
 
