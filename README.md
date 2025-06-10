@@ -34,11 +34,14 @@ expects a `token` parameter and WebSocket commands must be prefixed with
 - Runtime WiFi configuration at `/wifi` (form pre-filled with stored SSID and device name)
 - Custom mDNS hostname
 - Per-LED custom colors stored as a new `CUSTOM` preset
+- Configurable "hold" button to temporarily switch to a preset
 
 ### Hardware
 The previous and next buttons are wired as active-low. Pins 34--39 on the
 ESP32 can't use internal pull-ups, so if you connect a button to one of those
 pins (e.g. GPIO35) make sure an external pull-up resistor is present.
+Pin 17 is used for the optional "hold" button which temporarily activates a
+preset of your choice.
 
 ### WebSocket API
 The firmware also runs a WebSocket server on port `81`. Send plain text commands
@@ -162,6 +165,7 @@ LED pin (default 2): 2
 Previous button pin (default 0): 0
 Next button pin (default 35): 35
 mDNS hostname (default JohannesBril): MyGoggles
+Hold button pin (default 17): 17
 Export firmware binary to firmware.bin? [y/N]
 Searching for connected ESP32 boards...
 1) /dev/ttyUSB0
