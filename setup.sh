@@ -40,15 +40,16 @@ escape_sed_replacement() {
 }
 
 # Offer a Python virtual environment
-read -p "Use a Python virtual environment? [y/N] " use_venv
+read -r -p "Use a Python virtual environment? [y/N] " use_venv
 if [[ $use_venv =~ ^[Yy]$ ]]; then
-    read -p "Path to virtual environment (default .venv): " venv_path
+    read -r -p "Path to virtual environment (default .venv): " venv_path
     venv_path=${venv_path:-.venv}
     if [ ! -d "$venv_path" ]; then
         echo "Creating virtual environment at $venv_path..."
         python3 -m venv "$venv_path"
     fi
     # shellcheck disable=SC1090
+    # shellcheck source=/dev/null
     source "$venv_path/bin/activate"
 fi
 
@@ -66,18 +67,19 @@ if ! command -v pio >/dev/null 2>&1; then
         exit 1
     fi
     if [ -z "$VIRTUAL_ENV" ]; then
-        export PATH="$PATH:$(python3 -m site --user-base)/bin"
+        user_base=$(python3 -m site --user-base)
+        export PATH="$PATH:${user_base}/bin"
     fi
 fi
 
 # Verify secrets.h exists before building
 if [ ! -f include/secrets.h ]; then
     echo "include/secrets.h not found."
-    read -p "Create it now? [y/N] " create_secrets
+    read -r -p "Create it now? [y/N] " create_secrets
     if [[ $create_secrets =~ ^[Yy]$ ]]; then
         cp include/secrets_example.h include/secrets.h
-        read -p "WiFi SSID: " wifi_ssid
-        read -s -p "WiFi password: " wifi_pass; echo
+        read -r -p "WiFi SSID: " wifi_ssid
+        read -r -s -p "WiFi password: " wifi_pass; echo
         ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
         pass_escaped=$(escape_sed_replacement "$wifi_pass")
         sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h

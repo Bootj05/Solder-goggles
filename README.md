@@ -164,10 +164,12 @@ pio device monitor
 
 ### Linting
 Arduino sources are checked with [cpplint](https://github.com/cpplint/cpplint).
-Run the linter after making changes:
+Shell scripts are checked with [shellcheck](https://www.shellcheck.net/).
+Run the linters after making changes:
 
 ```bash
 cpplint --recursive src include test
+shellcheck install.sh setup.sh
 ```
 
 ### Running Tests

@@ -75,15 +75,16 @@ done
 
 
 # Offer a Python virtual environment
-read -p "Use a Python virtual environment? [y/N] " use_venv
+read -r -p "Use a Python virtual environment? [y/N] " use_venv
 if [[ $use_venv =~ ^[Yy]$ ]]; then
-    read -p "Path to virtual environment (default .venv): " venv_path
+    read -r -p "Path to virtual environment (default .venv): " venv_path
     venv_path=${venv_path:-.venv}
     if [ ! -d "$venv_path" ]; then
         echo "Creating virtual environment at $venv_path..."
         python3 -m venv "$venv_path"
     fi
     # shellcheck disable=SC1090
+    # shellcheck source=/dev/null
     source "$venv_path/bin/activate"
 fi
 
@@ -105,18 +106,19 @@ if ! command -v pio >/dev/null 2>&1; then
         exit 1
     fi
     if [ -z "$VIRTUAL_ENV" ]; then
-        export PATH="$PATH:$(python3 -m site --user-base)/bin"
+        user_base=$(python3 -m site --user-base)
+        export PATH="$PATH:${user_base}/bin"
     fi
 fi
 
 # Verify secrets
 if [ ! -f include/secrets.h ]; then
     echo "include/secrets.h not found."
-    read -p "Create it now? [y/N] " create_secrets
+    read -r -p "Create it now? [y/N] " create_secrets
     if [[ $create_secrets =~ ^[Yy]$ ]]; then
         cp include/secrets_example.h include/secrets.h
-        read -p "WiFi SSID: " wifi_ssid
-        read -s -p "WiFi password: " wifi_pass; echo
+        read -r -p "WiFi SSID: " wifi_ssid
+        read -r -s -p "WiFi password: " wifi_pass; echo
         ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
         pass_escaped=$(escape_sed_replacement "$wifi_pass")
         sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h
@@ -129,13 +131,13 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Allow user to override hardware pins and hostname
-read -p "LED pin (default 2): " led_pin
+read -r -p "LED pin (default 2): " led_pin
 led_pin=${led_pin:-2}
-read -p "Previous button pin (default 0): " btn_prev
+read -r -p "Previous button pin (default 0): " btn_prev
 btn_prev=${btn_prev:-0}
-read -p "Next button pin (default 35): " btn_next
+read -r -p "Next button pin (default 35): " btn_next
 btn_next=${btn_next:-35}
-read -p "mDNS hostname (default JohannesBril): " mdns_name
+read -r -p "mDNS hostname (default JohannesBril): " mdns_name
 mdns_name=${mdns_name:-JohannesBril}
 mdns_escaped=$(escape_sed_replacement "$mdns_name")
 sed_inplace "s|constexpr uint8_t LED_PIN = .*;|constexpr uint8_t LED_PIN = ${led_pin};|" src/goggles.ino
@@ -157,7 +159,7 @@ fi
 
 BIN_PATH=.pio/build/esp32/firmware.bin
 if [ -f "$BIN_PATH" ]; then
-    read -p "Export firmware binary to firmware.bin? [y/N] " export_bin
+    read -r -p "Export firmware binary to firmware.bin? [y/N] " export_bin
     if [[ $export_bin =~ ^[Yy]$ ]]; then
         cp "$BIN_PATH" firmware.bin
         echo "Firmware binary exported to firmware.bin"
@@ -176,9 +178,9 @@ fi
 selected="${ports[0]}"
 if [ ${#ports[@]} -gt 1 ]; then
     echo "Multiple ports detected:"
-    select port in "${ports[@]}" "Quit"; do
+    select sel in "${ports[@]}" "Quit"; do
         if [[ $REPLY -ge 1 && $REPLY -le ${#ports[@]} ]]; then
-            selected="${ports[$REPLY-1]}"
+            selected="$sel"
             break
         else
             echo "Aborting."; exit 1
@@ -186,7 +188,7 @@ if [ ${#ports[@]} -gt 1 ]; then
     done
 fi
 
-read -p "Flash firmware to $selected? [y/N] " confirm
+read -r -p "Flash firmware to $selected? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "Writing firmware..."
     if ! pio run -e esp32 --target upload --upload-port "$selected"; then

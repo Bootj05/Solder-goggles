@@ -11,13 +11,17 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Install PlatformIO
-        run: pip install platformio cpplint
+      - name: Install PlatformIO and shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          pip install platformio cpplint
       - name: Prepare secrets
         run: cp include/secrets_example.h include/secrets.h
       - name: Lint sources
         run: |
           cpplint --recursive src include test
+          shellcheck install.sh setup.sh
       - name: Run tests
         run: pio test -e native
       - name: Build firmware
