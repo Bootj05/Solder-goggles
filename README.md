@@ -94,6 +94,12 @@ create or use a Python virtual environment before installing dependencies:
 ```bash
 ./setup.sh
 ```
+For automated environments you can pass `--non-interactive` to use default
+answers for all prompts:
+
+```bash
+./setup.sh --non-interactive
+```
 
 If you already have PlatformIO installed you can build manually. Run
 `pio pkg install` once to download the libraries, then build with:
@@ -134,6 +140,12 @@ each step interactively:
 
 ```bash
 ./install.sh
+```
+In CI you can run the script non-interactively to accept the defaults and
+skip the exit pause:
+
+```bash
+./install.sh --non-interactive
 ```
 
 Example prompts during installation:

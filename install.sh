@@ -2,6 +2,8 @@
 # Install and flash script for ESP32
 set -Eeuo pipefail
 
+NON_INTERACTIVE=false
+
 error_exit() {
     echo "Error on line $1: $BASH_COMMAND" >&2
     exit 1
@@ -9,7 +11,6 @@ error_exit() {
 trap 'error_exit $LINENO' ERR
 
 # Always pause before exiting so the terminal stays open on failure or success
-trap 'echo; read -n 1 -r -p "Press any key to exit..."' EXIT
 
 # Determine sed command and in-place arguments
 SED="sed"
@@ -55,6 +56,7 @@ Steps performed by the script:
  5. Detect a connected ESP32 and flash it
 
 Each step prompts interactively. Answer 'n' or press Enter to skip an optional action.
+ -y, --non-interactive  Assume default answers and skip pauses
 EOF
 }
 
@@ -65,6 +67,10 @@ for arg in "$@"; do
             show_help
             exit 0
             ;;
+        -y|--non-interactive|--yes)
+            NON_INTERACTIVE=true
+            shift
+            ;;
         *)
             echo "Unknown option: $arg" >&2
             show_help
@@ -73,12 +79,24 @@ for arg in "$@"; do
     esac
 done
 
+if [ "$NON_INTERACTIVE" = false ]; then
+    trap 'echo; read -n 1 -r -p "Press any key to exit..."' EXIT
+fi
+
 
 # Offer a Python virtual environment
-read -p "Use a Python virtual environment? [y/N] " use_venv
+if [ "$NON_INTERACTIVE" = true ]; then
+    use_venv="n"
+else
+    read -p "Use a Python virtual environment? [y/N] " use_venv
+fi
 if [[ $use_venv =~ ^[Yy]$ ]]; then
-    read -p "Path to virtual environment (default .venv): " venv_path
-    venv_path=${venv_path:-.venv}
+    if [ "$NON_INTERACTIVE" = true ]; then
+        venv_path=.venv
+    else
+        read -p "Path to virtual environment (default .venv): " venv_path
+        venv_path=${venv_path:-.venv}
+    fi
     if [ ! -d "$venv_path" ]; then
         echo "Creating virtual environment at $venv_path..."
         python3 -m venv "$venv_path"
@@ -95,7 +113,7 @@ if ! command -v pio >/dev/null 2>&1; then
         exit 1
     fi
     pip_opts=""
-    if [ -z "$VIRTUAL_ENV" ]; then
+    if [ -z "${VIRTUAL_ENV:-}" ]; then
         pip_opts="--user"
     fi
     if ! python3 -m pip install $pip_opts -U platformio; then
@@ -104,7 +122,7 @@ if ! command -v pio >/dev/null 2>&1; then
         echo "https://docs.platformio.org/en/latest/core/installation.html" >&2
         exit 1
     fi
-    if [ -z "$VIRTUAL_ENV" ]; then
+    if [ -z "${VIRTUAL_ENV:-}" ]; then
         export PATH="$PATH:$(python3 -m site --user-base)/bin"
     fi
 fi
@@ -112,16 +130,24 @@ fi
 # Verify secrets
 if [ ! -f include/secrets.h ]; then
     echo "include/secrets.h not found."
-    read -p "Create it now? [y/N] " create_secrets
+    if [ "$NON_INTERACTIVE" = true ]; then
+        create_secrets="n"
+    else
+        read -p "Create it now? [y/N] " create_secrets
+    fi
     if [[ $create_secrets =~ ^[Yy]$ ]]; then
         cp include/secrets_example.h include/secrets.h
-        read -p "WiFi SSID: " wifi_ssid
-        read -s -p "WiFi password: " wifi_pass; echo
-        ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
-        pass_escaped=$(escape_sed_replacement "$wifi_pass")
-        sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h
-        sed_inplace "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${pass_escaped}\"|" include/secrets.h
-        echo "Created include/secrets.h"
+        if [ "$NON_INTERACTIVE" = true ]; then
+            echo "Created include/secrets.h with example values"
+        else
+            read -p "WiFi SSID: " wifi_ssid
+            read -s -p "WiFi password: " wifi_pass; echo
+            ssid_escaped=$(escape_sed_replacement "$wifi_ssid")
+            pass_escaped=$(escape_sed_replacement "$wifi_pass")
+            sed_inplace "s|#define WIFI_SSID .*|#define WIFI_SSID \"${ssid_escaped}\"|" include/secrets.h
+            sed_inplace "s|#define WIFI_PASSWORD .*|#define WIFI_PASSWORD \"${pass_escaped}\"|" include/secrets.h
+            echo "Created include/secrets.h"
+        fi
     else
         echo "Please create include/secrets.h before proceeding." >&2
         exit 1
@@ -129,14 +155,21 @@ if [ ! -f include/secrets.h ]; then
 fi
 
 # Allow user to override hardware pins and hostname
-read -p "LED pin (default 2): " led_pin
-led_pin=${led_pin:-2}
-read -p "Previous button pin (default 0): " btn_prev
-btn_prev=${btn_prev:-0}
-read -p "Next button pin (default 35): " btn_next
-btn_next=${btn_next:-35}
-read -p "mDNS hostname (default JohannesBril): " mdns_name
-mdns_name=${mdns_name:-JohannesBril}
+if [ "$NON_INTERACTIVE" = true ]; then
+    led_pin=2
+    btn_prev=0
+    btn_next=35
+    mdns_name=JohannesBril
+else
+    read -p "LED pin (default 2): " led_pin
+    led_pin=${led_pin:-2}
+    read -p "Previous button pin (default 0): " btn_prev
+    btn_prev=${btn_prev:-0}
+    read -p "Next button pin (default 35): " btn_next
+    btn_next=${btn_next:-35}
+    read -p "mDNS hostname (default JohannesBril): " mdns_name
+    mdns_name=${mdns_name:-JohannesBril}
+fi
 mdns_escaped=$(escape_sed_replacement "$mdns_name")
 sed_inplace "s|constexpr uint8_t LED_PIN = .*;|constexpr uint8_t LED_PIN = ${led_pin};|" src/goggles.ino
 sed_inplace "s|constexpr uint8_t BTN_PREV = .*;|constexpr uint8_t BTN_PREV = ${btn_prev};|" src/goggles.ino
@@ -157,7 +190,11 @@ fi
 
 BIN_PATH=.pio/build/esp32/firmware.bin
 if [ -f "$BIN_PATH" ]; then
-    read -p "Export firmware binary to firmware.bin? [y/N] " export_bin
+    if [ "$NON_INTERACTIVE" = true ]; then
+        export_bin="n"
+    else
+        read -p "Export firmware binary to firmware.bin? [y/N] " export_bin
+    fi
     if [[ $export_bin =~ ^[Yy]$ ]]; then
         cp "$BIN_PATH" firmware.bin
         echo "Firmware binary exported to firmware.bin"
@@ -175,18 +212,26 @@ fi
 
 selected="${ports[0]}"
 if [ ${#ports[@]} -gt 1 ]; then
-    echo "Multiple ports detected:"
-    select port in "${ports[@]}" "Quit"; do
-        if [[ $REPLY -ge 1 && $REPLY -le ${#ports[@]} ]]; then
-            selected="${ports[$REPLY-1]}"
-            break
-        else
-            echo "Aborting."; exit 1
-        fi
-    done
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo "Multiple ports detected, using ${ports[0]}"
+    else
+        echo "Multiple ports detected:"
+        select port in "${ports[@]}" "Quit"; do
+            if [[ $REPLY -ge 1 && $REPLY -le ${#ports[@]} ]]; then
+                selected="${ports[$REPLY-1]}"
+                break
+            else
+                echo "Aborting."; exit 1
+            fi
+        done
+    fi
 fi
 
-read -p "Flash firmware to $selected? [y/N] " confirm
+if [ "$NON_INTERACTIVE" = true ]; then
+    confirm="n"
+else
+    read -p "Flash firmware to $selected? [y/N] " confirm
+fi
 if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "Writing firmware..."
     if ! pio run -e esp32 --target upload --upload-port "$selected"; then
