@@ -9,6 +9,14 @@ void test_brightness_message();
 void test_color_message();
 void test_speed_message();
 void test_leds_message();
+void test_unknown_command();
+void test_set_oob();
+void test_set_invalid();
+void test_brightness_oob();
+void test_brightness_invalid();
+void test_speed_invalid();
+void test_speed_nonnumeric();
+void test_leds_bad_data();
 
 void test_valid_color() {
     uint32_t val;
@@ -50,6 +58,14 @@ int main(int argc, char **argv) {
     RUN_TEST(test_color_message);
     RUN_TEST(test_speed_message);
     RUN_TEST(test_leds_message);
+    RUN_TEST(test_unknown_command);
+    RUN_TEST(test_set_oob);
+    RUN_TEST(test_set_invalid);
+    RUN_TEST(test_brightness_oob);
+    RUN_TEST(test_brightness_invalid);
+    RUN_TEST(test_speed_invalid);
+    RUN_TEST(test_speed_nonnumeric);
+    RUN_TEST(test_leds_bad_data);
     return UNITY_END();
 }
 
