@@ -84,8 +84,9 @@ static void wsEvent(uint8_t /*num*/, WStype_t type, uint8_t *payload,
         }
     } else if (msg.rfind("leds:", 0) == 0) {
         std::string data = msg.substr(5);
-        presets[currentPreset].leds.assign(NUM_LEDS, 0);
+        std::vector<uint32_t> temp(NUM_LEDS, 0);
         size_t idx = 0;
+        bool valid = true;
         while (idx < NUM_LEDS && !data.empty()) {
             size_t sep = data.find(',');
             std::string tok =
@@ -93,15 +94,22 @@ static void wsEvent(uint8_t /*num*/, WStype_t type, uint8_t *payload,
             if (!tok.empty() && tok[0] == '#')
                 tok.erase(0, 1);
             uint32_t val;
-            if (parseHexColor(tok.c_str(), val))
-                presets[currentPreset].leds[idx] = val;
+            if (parseHexColor(tok.c_str(), val)) {
+                temp[idx] = val;
+            } else {
+                valid = false;
+                break;
+            }
             if (sep == std::string::npos)
                 data.clear();
             else
                 data.erase(0, sep + 1);
             ++idx;
         }
-        applyPreset();
+        if (valid && data.empty()) {
+            presets[currentPreset].leds = temp;
+            applyPreset();
+        }
     }
 }
 
@@ -159,6 +167,73 @@ void test_leds_message() {
     TEST_ASSERT_EQUAL_HEX32(0xa0b0c0, presets[currentPreset].leds[1]);
     TEST_ASSERT_EQUAL_HEX32(0xffffff, presets[currentPreset].leds[2]);
     TEST_ASSERT_TRUE(applyCalled);
+}
+
+void test_unknown_command() {
+    const char msg[] = "foobar";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL(0, currentPreset);
+    TEST_ASSERT_EQUAL_UINT8(255, brightness);
+    TEST_ASSERT_EQUAL_UINT32(50, animInterval);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_set_oob() {
+    const char msg[] = "set:5";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL(0, currentPreset);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_set_invalid() {
+    const char msg[] = "set:abc";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL(0, currentPreset);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_brightness_oob() {
+    const char msg[] = "bright:300";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL_UINT8(255, brightness);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_brightness_invalid() {
+    const char msg[] = "bright:abc";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL_UINT8(255, brightness);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_speed_invalid() {
+    const char msg[] = "speed:0";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL_UINT32(50, animInterval);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_speed_nonnumeric() {
+    const char msg[] = "speed:abc";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL_UINT32(50, animInterval);
+    TEST_ASSERT_FALSE(applyCalled);
+}
+
+void test_leds_bad_data() {
+    presets[currentPreset].leds[0] = 0x123456;
+    const char msg[] = "leds:#zzzzzz";
+    auto buf = reinterpret_cast<uint8_t *>(const_cast<char *>(msg));
+    wsEvent(0, WStype_TEXT, buf, sizeof(msg) - 1);
+    TEST_ASSERT_EQUAL_HEX32(0x123456, presets[currentPreset].leds[0]);
+    TEST_ASSERT_FALSE(applyCalled);
 }
 
 // Test functions are called from main() in test_utils.cpp
