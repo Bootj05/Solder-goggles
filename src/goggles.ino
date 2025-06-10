@@ -528,14 +528,32 @@ const char HTML_PAGE[] PROGMEM = R"html(
   <title>Solder Goggles</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(135deg, #222, #000);
-      color: #f8f9fa;
+      font-family: 'Orbitron', sans-serif;
+      background: radial-gradient(circle at top, #0d1b2a, #000);
+      color: #d8e3ff;
+    }
+    h1 {
+      letter-spacing: 2px;
+    }
+    .btn-primary,
+    .btn-secondary {
+      background-color: #1282a2;
+      border-color: #1282a2;
+    }
+    .btn-secondary {
+      background-color: #1e2d45;
     }
     .list-group-item {
-      background-color: rgba(255,255,255,0.05);
-      border-color: rgba(255,255,255,0.15);
+      background-color: rgba(255,255,255,0.03);
+      border-color: #1282a2;
+    }
+    a.btn-link {
+      color: #5bc0eb;
     }
   </style>
 </head>
