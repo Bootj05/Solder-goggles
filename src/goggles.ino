@@ -21,6 +21,7 @@
 #include <SPIFFS.h>
 #include <Preferences.h>
 #include <BluetoothSerial.h>
+#include <Update.h>
 
 #include "secrets.h"  // NOLINT(build/include_subdir)
 #include "utils.h"
@@ -583,7 +584,8 @@ const char HTML_PAGE[] PROGMEM = R"html(
       <button class='btn btn-primary'>Add</button>
     </div>
   </form>
-  <a class='btn btn-link mt-3' href='/wifi'>WiFi setup</a>
+  <a class='btn btn-link mt-3 me-3' href='/wifi'>WiFi setup</a>
+  <a class='btn btn-link mt-3' href='/update'>OTA update</a>
 </body>
 </html>
 )html";
@@ -727,7 +729,8 @@ void handleCommand(String msg) {
     if (presets[currentPreset].leds.size() != cfg::NUM_LEDS)
       presets[currentPreset].leds.assign(cfg::NUM_LEDS, CRGB::Black);
     else
-      fill_solid(presets[currentPreset].leds.data(), cfg::NUM_LEDS, CRGB::Black);
+      fill_solid(presets[currentPreset].leds.data(), cfg::NUM_LEDS,
+                 CRGB::Black);
     if (presets[currentPreset].effects.size() != cfg::NUM_LEDS)
       presets[currentPreset].effects.assign(cfg::NUM_LEDS, 0);
     else
@@ -826,6 +829,22 @@ const char WIFI_FORM_HTML[] PROGMEM = R"html(
 </body></html>
 )html";
 
+/**
+ * Simple OTA update page
+ */
+const char UPDATE_FORM_HTML[] PROGMEM = R"html(
+<!DOCTYPE html><html><head><title>OTA Update</title>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'></head>
+<body class='container py-4'>
+<h1 class='mb-3'>OTA Update</h1>
+<form method='POST' action='/update' enctype='multipart/form-data' class='row g-3'>
+<div class='col-12'><input class='form-control' type='file' name='firmware'></div>
+<div class='col-12'><button class='btn btn-primary'>Upload</button></div>
+</form>
+</body></html>
+)html";
+
 void handleWifiForm() {
   server.send_P(200, "text/html", WIFI_FORM_HTML);
 }
@@ -845,6 +864,37 @@ void handleWifiSave() {
   connectWiFi();
   server.sendHeader("Location", "/");
   server.send(303);
+}
+
+/** Display OTA upload form */
+void handleUpdateForm() {
+  server.send_P(200, "text/html", UPDATE_FORM_HTML);
+}
+
+/** Process uploaded firmware */
+void handleUpdateUpload() {
+  HTTPUpload &up = server.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    Serial.printf("Update: %s\n", up.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+      Update.printError(Serial);
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(up.buf, up.currentSize) != up.currentSize)
+      Update.printError(Serial);
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (Update.end(true))
+      Serial.printf("Update Success: %u bytes\n", up.totalSize);
+    else
+      Update.printError(Serial);
+  }
+}
+
+/** Return update status and reboot */
+void handleUpdateResult() {
+  server.send(200, "text/plain", Update.hasError() ? "FAIL" : "OK");
+  delay(1000);
+  if (!Update.hasError())
+    ESP.restart();
 }
 
 /**
@@ -908,6 +958,8 @@ void setup() {
   server.on("/bright", HTTP_GET, handleBright);
   server.on("/wifi", HTTP_GET, handleWifiForm);
   server.on("/wifi", HTTP_POST, handleWifiSave);
+  server.on("/update", HTTP_GET, handleUpdateForm);
+  server.on("/update", HTTP_POST, handleUpdateResult, handleUpdateUpload);
   server.begin();
 
   ws.begin();
